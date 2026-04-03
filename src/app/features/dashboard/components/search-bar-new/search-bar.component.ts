@@ -4,6 +4,7 @@ import { IonIcon } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { searchOutline, closeOutline, locationOutline } from 'ionicons/icons';
 import { JobService } from '../../../../core/services/job.service';
+import { CountriesService } from '../../../../core/services/countries.service';
 import { LocationPickerModalComponent } from '../location-picker-modal/location-picker-modal.component';
 
 @Component({
@@ -155,6 +156,7 @@ import { LocationPickerModalComponent } from '../location-picker-modal/location-
 })
 export class SearchBarComponent {
   readonly jobService = inject(JobService);
+  readonly countriesService = inject(CountriesService);
 
   @Output() search = new EventEmitter<{ query: string; location: string }>();
 
@@ -164,6 +166,7 @@ export class SearchBarComponent {
 
   constructor() {
     addIcons({ searchOutline, closeOutline, locationOutline });
+    this.countriesService.loadCountries();
   }
 
   onQueryChange(event: Event): void {
@@ -204,27 +207,21 @@ export class SearchBarComponent {
   }
 
   getLocationDisplayName(): string {
-    const locationMap: { [key: string]: string } = {
-      '': '🌍 Todo el mundo',
-      'Spain': '🇪🇸 España',
-      'United Kingdom': '🇬🇧 Reino Unido',
-      'Germany': '🇩🇪 Alemania',
-      'France': '🇫🇷 Francia',
-      'Italy': '🇮🇹 Italia',
-      'Portugal': '🇵🇹 Portugal',
-      'Netherlands': '🇳🇱 Países Bajos',
-      'United States': '🇺🇸 Estados Unidos',
-      'Canada': '🇨🇦 Canadá',
-      'Mexico': '🇲🇽 México',
-      'Brazil': '🇧🇷 Brasil',
-      'Argentina': '🇦🇷 Argentina',
-      'Chile': '🇨🇱 Chile',
-      'Colombia': '🇨🇴 Colombia',
-      'India': '🇮🇳 India',
-      'Japan': '🇯🇵 Japón',
-      'Singapore': '🇸🇬 Singapur',
+    if (!this.location) {
+      return '🌍 Todo el mundo';
+    }
+
+    // Buscar por código de país (ISO 3166-1 alpha-2)
+    const country = this.countriesService.getCountryByCode(this.location);
+    if (country) {
+      return `${country.flagEmoji} ${country.name}`;
+    }
+
+    // Si no es un código de país, es un país personalizado
+    const customCountries: { [key: string]: string } = {
       'Remote': '🌐 Remoto',
     };
-    return locationMap[this.location] || '🌍 Todo el mundo';
+
+    return customCountries[this.location] || '🌍 Todo el mundo';
   }
 }

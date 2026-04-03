@@ -1,16 +1,11 @@
-import { Component, Output, EventEmitter, Input } from '@angular/core';
+import { Component, Output, EventEmitter, Input, inject, OnInit, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonIcon } from '@ionic/angular/standalone';
 import { FormsModule } from '@angular/forms';
 import { addIcons } from 'ionicons';
 import { closeOutline, searchOutline } from 'ionicons/icons';
+import { CountriesService, Country } from '../../../../core/services/countries.service';
 
-interface LocationOption {
-  code: string;
-  name: string;
-  region: string;
-  flag: string;
-}
 
 @Component({
   selector: 'app-location-picker-modal',
@@ -41,40 +36,44 @@ interface LocationOption {
 
         <!-- Locations List Grouped by Region -->
         <div class="locations-scroll">
-          <ng-container *ngFor="let region of groupedLocations$ | keyvalue">
-            <div class="region-group" *ngIf="region.value.length > 0">
-              <div class="region-header">{{ region.key }}</div>
+          @if (countriesService.isLoading()) {
+            <div class="loading-message">Cargando países...</div>
+          } @else {
+            <ng-container *ngFor="let region of countriesService.countriesByRegion() | keyvalue">
+              <div class="region-group" *ngIf="region.value.length > 0">
+                <div class="region-header">{{ translateRegion(region.key) }}</div>
 
-              <button
-                *ngFor="let location of region.value"
-                class="location-item"
-                [class.selected]="location.code === selectedLocation"
-                (click)="selectLocation(location.code)"
-              >
-                <span class="flag">{{ location.flag }}</span>
-                <span class="name">{{ location.name }}</span>
-                <span
-                  *ngIf="location.code === selectedLocation"
-                  class="checkmark"
+                <button
+                  *ngFor="let country of getFilteredCountries(region.value)"
+                  class="location-item"
+                  [class.selected]="country.code === selectedLocation"
+                  (click)="selectLocation(country.code)"
                 >
-                  ✓
-                </span>
+                  <span class="flag">{{ country.flagEmoji }}</span>
+                  <span class="name">{{ country.name }}</span>
+                  <span
+                    *ngIf="country.code === selectedLocation"
+                    class="checkmark"
+                  >
+                    ✓
+                  </span>
+                </button>
+              </div>
+            </ng-container>
+
+            <!-- Global Option -->
+            <div class="region-group">
+              <button
+                class="location-item global-option"
+                [class.selected]="selectedLocation === ''"
+                (click)="selectLocation('')"
+              >
+                <span class="flag">🌍</span>
+                <span class="name">Todo el mundo</span>
+                <span *ngIf="selectedLocation === ''" class="checkmark">✓</span>
               </button>
             </div>
-          </ng-container>
-
-          <!-- Global Option -->
-          <div class="region-group">
-            <button
-              class="location-item global-option"
-              [class.selected]="selectedLocation === ''"
-              (click)="selectLocation('')"
-            >
-              <span class="flag">🌍</span>
-              <span class="name">Todo el mundo</span>
-              <span *ngIf="selectedLocation === ''" class="checkmark">✓</span>
-            </button>
-          </div>
+          }
         </div>
       </div>
     </div>
@@ -293,71 +292,58 @@ interface LocationOption {
       margin-top: 8px;
       padding-top: 16px;
     }
+
+    .loading-message {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      color: var(--sj-text-secondary);
+      font-size: 14px;
+    }
   `
 })
-export class LocationPickerModalComponent {
+export class LocationPickerModalComponent implements OnInit {
+  readonly countriesService = inject(CountriesService);
+
   @Input() selectedLocation: string = '';
   @Output() locationSelected = new EventEmitter<string>();
   @Output() closed = new EventEmitter<void>();
 
   searchQuery = '';
 
-  private allLocations: LocationOption[] = [
-    // Europa
-    { code: 'Spain', name: 'España', region: 'Europa', flag: '🇪🇸' },
-    { code: 'United Kingdom', name: 'Reino Unido', region: 'Europa', flag: '🇬🇧' },
-    { code: 'Germany', name: 'Alemania', region: 'Europa', flag: '🇩🇪' },
-    { code: 'France', name: 'Francia', region: 'Europa', flag: '🇫🇷' },
-    { code: 'Italy', name: 'Italia', region: 'Europa', flag: '🇮🇹' },
-    { code: 'Portugal', name: 'Portugal', region: 'Europa', flag: '🇵🇹' },
-    { code: 'Netherlands', name: 'Países Bajos', region: 'Europa', flag: '🇳🇱' },
-
-    // Americas
-    { code: 'United States', name: 'Estados Unidos', region: 'Americas', flag: '🇺🇸' },
-    { code: 'Canada', name: 'Canadá', region: 'Americas', flag: '🇨🇦' },
-    { code: 'Mexico', name: 'México', region: 'Americas', flag: '🇲🇽' },
-    { code: 'Brazil', name: 'Brasil', region: 'Americas', flag: '🇧🇷' },
-    { code: 'Argentina', name: 'Argentina', region: 'Americas', flag: '🇦🇷' },
-    { code: 'Chile', name: 'Chile', region: 'Americas', flag: '🇨🇱' },
-    { code: 'Colombia', name: 'Colombia', region: 'Americas', flag: '🇨🇴' },
-
-    // Asia
-    { code: 'India', name: 'India', region: 'Asia', flag: '🇮🇳' },
-    { code: 'Japan', name: 'Japón', region: 'Asia', flag: '🇯🇵' },
-    { code: 'Singapore', name: 'Singapur', region: 'Asia', flag: '🇸🇬' },
-
-    // Remote
-    { code: 'Remote', name: 'Remoto / Anywhere', region: 'Especial', flag: '🌐' },
-  ];
-
-  get groupedLocations$(): Map<string, LocationOption[]> {
-    const filtered = this.searchQuery.trim()
-      ? this.allLocations.filter(
-          (loc) =>
-            loc.name.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-            loc.code.toLowerCase().includes(this.searchQuery.toLowerCase())
+  getFilteredCountries(countries: Country[]): Country[] {
+    const query = this.searchQuery.trim().toLowerCase();
+    return query
+      ? countries.filter(
+          (c) =>
+            c.name.toLowerCase().includes(query) ||
+            c.code.toLowerCase().includes(query)
         )
-      : this.allLocations;
-
-    const grouped = new Map<string, LocationOption[]>();
-    const regions = ['Europa', 'Americas', 'Asia', 'Especial'];
-
-    for (const region of regions) {
-      const items = filtered.filter((loc) => loc.region === region);
-      if (items.length > 0) {
-        grouped.set(region, items);
-      }
-    }
-
-    return grouped;
+      : countries;
   }
 
   constructor() {
     addIcons({ closeOutline, searchOutline });
   }
 
+  ngOnInit(): void {
+    this.countriesService.loadCountries();
+  }
+
+  translateRegion(region: string): string {
+    const regionMap: { [key: string]: string } = {
+      'Europe': 'Europa',
+      'Americas': 'América',
+      'Asia': 'Asia',
+      'Africa': 'África',
+      'Oceania': 'Oceanía',
+    };
+    return regionMap[region] || region;
+  }
+
   onSearch(): void {
-    // El getter se actualiza automáticamente con el nuevo searchQuery
+    // El computed se actualiza automáticamente
   }
 
   selectLocation(code: string): void {
