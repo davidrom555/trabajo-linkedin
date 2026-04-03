@@ -1,14 +1,15 @@
-import { Component, input, output, computed } from '@angular/core';
-import { 
-  IonCard, 
-  IonCardContent, 
-  IonIcon, 
-  IonItemSliding, 
-  IonItem, 
-  IonItemOptions, 
+import { Component, input, output, computed, inject } from '@angular/core';
+import {
+  IonCard,
+  IonCardContent,
+  IonIcon,
+  IonItemSliding,
+  IonItem,
+  IonItemOptions,
   IonItemOption,
   IonBadge,
   IonRippleEffect,
+  ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
@@ -162,35 +163,33 @@ import { MatchScoreRingComponent } from '../match-score-ring/match-score-ring';
 
             <!-- Action Bar -->
             <div class="action-bar">
-              <button 
+              <button
                 class="action-btn save-btn"
                 [class.active]="job().saved"
                 (click)="onSave($event)"
-                stopPropagation
+                type="button"
               >
                 <ion-icon [name]="job().saved ? 'bookmark' : 'bookmark-outline'"></ion-icon>
                 <span>{{ job().saved ? 'Guardado' : 'Guardar' }}</span>
               </button>
-              
-              <button 
+
+              <button
                 class="action-btn share-btn"
                 (click)="onCopyLink($event)"
-                stopPropagation
+                type="button"
               >
                 <ion-icon name="copy-outline"></ion-icon>
                 <span>Copiar</span>
               </button>
-              
-              <a 
-                [href]="job().linkedinUrl"
-                target="_blank"
-                rel="noopener"
+
+              <button
                 class="action-btn apply-btn"
-                (click)="onApply($event)"
+                type="button"
+                (click)="onApplyClick($event)"
               >
                 <span>Ver oferta</span>
                 <ion-icon name="open-outline"></ion-icon>
-              </a>
+              </button>
             </div>
           </ion-card-content>
         </ion-card>
@@ -558,6 +557,8 @@ import { MatchScoreRingComponent } from '../match-score-ring/match-score-ring';
   `,
 })
 export class JobCardComponent {
+  private readonly toastController = inject(ToastController);
+
   readonly job = input.required<Job>();
   readonly save = output<string>();
   readonly dismiss = output<string>();
@@ -656,21 +657,39 @@ export class JobCardComponent {
 
   onSave(event: Event): void {
     event.stopPropagation();
-    event.preventDefault();
     this.save.emit(this.job().id);
   }
 
   onDismiss(event: Event): void {
     event.stopPropagation();
-    event.preventDefault();
     this.dismiss.emit(this.job().id);
   }
 
   onCopyLink(event: Event): void {
     event.stopPropagation();
-    event.preventDefault();
+
+    if (!this.job().linkedinUrl) {
+      console.warn('[JobCard] No linkedinUrl available');
+      return;
+    }
+
+    navigator.clipboard.writeText(this.job().linkedinUrl).then(
+      () => {
+        console.log('[JobCard] URL copied successfully');
+        this.showToast('📋 Enlace copiado', 'success');
+      },
+      (error) => {
+        console.error('[JobCard] Copy failed:', error);
+        this.showToast('Error al copiar', 'danger');
+      }
+    );
+  }
+
+  onApplyClick(event: Event): void {
+    event.stopPropagation();
+    this.apply.emit(this.job().id);
     if (this.job().linkedinUrl) {
-      navigator.clipboard.writeText(this.job().linkedinUrl);
+      window.open(this.job().linkedinUrl, '_blank', 'noopener,noreferrer');
     }
   }
 
@@ -683,5 +702,16 @@ export class JobCardComponent {
     if (this.job().linkedinUrl) {
       window.open(this.job().linkedinUrl, '_blank', 'noopener,noreferrer');
     }
+  }
+
+  private showToast(message: string, color: 'success' | 'danger' = 'success'): void {
+    this.toastController.create({
+      message,
+      duration: 2000,
+      position: 'bottom',
+      color,
+    }).then(toast => {
+      toast.present().catch(err => console.error('[JobCard] Toast present error:', err));
+    }).catch(err => console.error('[JobCard] Toast create error:', err));
   }
 }

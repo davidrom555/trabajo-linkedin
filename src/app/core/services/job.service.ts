@@ -370,20 +370,47 @@ export class JobService {
     this._selectedSources.set(sources);
   }
 
-  toggleSaved(jobId: string): void {
-    // Actualizar en memoria
-    this._jobs.update((jobs) =>
-      jobs.map((j) => (j.id === jobId ? { ...j, saved: !j.saved } : j))
-    );
-
-    // Actualizar localStorage
+  /**
+   * Sincronizar jobs desde SearchService (mantiene saved state)
+   */
+  syncJobs(jobs: Job[]): void {
     const savedIds = this.getSavedJobIds();
-    if (savedIds.has(jobId)) {
+    const jobsWithSavedState = jobs.map(job => ({
+      ...job,
+      saved: savedIds.has(job.id) || job.saved
+    }));
+    this._jobs.set(jobsWithSavedState);
+  }
+
+  toggleSaved(jobId: string): void {
+    console.log('[JobService] toggleSaved called for:', jobId);
+
+    // 1. Leer estado actual de localStorage
+    const savedIds = this.getSavedJobIds();
+    const isCurrentlySaved = savedIds.has(jobId);
+
+    // 2. Alternar estado
+    if (isCurrentlySaved) {
       savedIds.delete(jobId);
+      console.log('[JobService] Removing from saved:', jobId);
     } else {
       savedIds.add(jobId);
+      console.log('[JobService] Adding to saved:', jobId);
     }
-    localStorage.setItem(this.SAVED_JOBS_KEY, JSON.stringify([...savedIds]));
+
+    // 3. Guardar en localStorage
+    const savedArray = Array.from(savedIds);
+    localStorage.setItem(this.SAVED_JOBS_KEY, JSON.stringify(savedArray));
+    console.log('[JobService] Saved to localStorage:', savedArray);
+
+    // 4. Actualizar estado en memoria
+    this._jobs.update((jobs) =>
+      jobs.map((j) =>
+        j.id === jobId ? { ...j, saved: !isCurrentlySaved } : j
+      )
+    );
+
+    console.log('[JobService] Updated jobs state, new saved:', !isCurrentlySaved);
   }
 
   markApplied(jobId: string): void {

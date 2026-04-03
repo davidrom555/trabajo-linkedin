@@ -1,0 +1,23 @@
+{
+  "short_name": "LinkedFast",
+  "name": "LinkedFast – Búsqueda rápida de empleos",
+  "description": "Encuentra trabajo en LinkedIn al instante. Búsqueda rápida, filtros inteligentes y notificaciones de nuevas ofertas.",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "scope": "/",
+  "theme_color": "#0A66C2",
+  "orientation": "portrait"
+}

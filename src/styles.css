@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════
-   SMARTJOB AGENT - Design System
+   LINKEDFAST - Design System
    Sistema de diseño profesional mobile-first
    ═══════════════════════════════════════════════════════════ */
 
@@ -11,11 +11,11 @@
    ═══════════════════════════════════════════════════════════ */
 
 :root {
-  /* Colores primarios - Esmeralda profesional */
-  --sj-primary: #059669;
-  --sj-primary-light: #10b981;
-  --sj-primary-dark: #047857;
-  --sj-primary-soft: #d1fae5;
+  /* Colores primarios - LinkedIn Blue */
+  --sj-primary: #0A66C2;
+  --sj-primary-light: #378fe9;
+  --sj-primary-dark: #004182;
+  --sj-primary-soft: #e2f0fe;
   
   /* Colores de superficie - MODO CLARO (default) */
   --sj-background: #f8fafc;

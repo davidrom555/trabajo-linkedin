@@ -37,7 +37,16 @@ import { LocationPickerModalComponent } from '../location-picker-modal/location-
       <!-- Location Selector -->
       <div class="location-selector" (click)="showLocationModal()">
         <ion-icon name="location-outline"></ion-icon>
-        <span>{{ getLocationDisplayName() }}</span>
+        <span class="location-display">{{ getLocationDisplayName() }}</span>
+        @if (getLocationFlagUrl()) {
+          <img
+            [src]="getLocationFlagUrl()"
+            [alt]="getLocationName()"
+            class="location-flag-image"
+            loading="lazy"
+            onerror="this.style.display='none'"
+          />
+        }
       </div>
     </div>
 
@@ -152,6 +161,20 @@ import { LocationPickerModalComponent } from '../location-picker-modal/location-
       color: var(--sj-primary);
       flex-shrink: 0;
     }
+
+    .location-display {
+      flex: 1;
+      text-align: center;
+    }
+
+    .location-flag-image {
+      width: 24px;
+      height: 18px;
+      object-fit: cover;
+      border-radius: 3px;
+      flex-shrink: 0;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
   `
 })
 export class SearchBarComponent {
@@ -206,22 +229,37 @@ export class SearchBarComponent {
     this.onSearch();
   }
 
-  getLocationDisplayName(): string {
+  getLocationName(): string {
     if (!this.location) {
-      return '🌍 Todo el mundo';
+      return 'Todo el mundo';
     }
 
-    // Buscar por código de país (ISO 3166-1 alpha-2)
     const country = this.countriesService.getCountryByCode(this.location);
     if (country) {
-      return `${country.flagEmoji} ${country.name}`;
+      return country.name;
     }
 
-    // Si no es un código de país, es un país personalizado
     const customCountries: { [key: string]: string } = {
-      'Remote': '🌐 Remoto',
+      'Remote': 'Remoto',
     };
 
-    return customCountries[this.location] || '🌍 Todo el mundo';
+    return customCountries[this.location] || 'Todo el mundo';
+  }
+
+  getLocationDisplayName(): string {
+    return this.getLocationName();
+  }
+
+  getLocationFlagUrl(): string {
+    if (!this.location || this.location === '') {
+      return '';
+    }
+
+    const country = this.countriesService.getCountryByCode(this.location);
+    if (country) {
+      return country.flagUrl;
+    }
+
+    return '';
   }
 }

@@ -34,6 +34,19 @@ import { CountriesService, Country } from '../../../../core/services/countries.s
           />
         </div>
 
+        <!-- Global Option (Siempre visible) -->
+        <div class="global-option-fixed">
+          <button
+            class="location-item global-option"
+            [class.selected]="selectedLocation === ''"
+            (click)="selectLocation('')"
+          >
+            <span class="flag">🌍</span>
+            <span class="name">Todo el mundo</span>
+            <span *ngIf="selectedLocation === ''" class="checkmark">✓</span>
+          </button>
+        </div>
+
         <!-- Locations List Grouped by Region -->
         <div class="locations-scroll">
           @if (countriesService.isLoading()) {
@@ -49,7 +62,14 @@ import { CountriesService, Country } from '../../../../core/services/countries.s
                   [class.selected]="country.code === selectedLocation"
                   (click)="selectLocation(country.code)"
                 >
-                  <span class="flag">{{ country.flagEmoji }}</span>
+                  <img
+                    [src]="country.flagUrl"
+                    [alt]="country.name"
+                    class="flag-image"
+                    loading="lazy"
+                    onerror="this.style.display='none'"
+                  />
+                  <span class="flag-emoji" *ngIf="!country.flagUrl">{{ country.flagEmoji }}</span>
                   <span class="name">{{ country.name }}</span>
                   <span
                     *ngIf="country.code === selectedLocation"
@@ -60,19 +80,6 @@ import { CountriesService, Country } from '../../../../core/services/countries.s
                 </button>
               </div>
             </ng-container>
-
-            <!-- Global Option -->
-            <div class="region-group">
-              <button
-                class="location-item global-option"
-                [class.selected]="selectedLocation === ''"
-                (click)="selectLocation('')"
-              >
-                <span class="flag">🌍</span>
-                <span class="name">Todo el mundo</span>
-                <span *ngIf="selectedLocation === ''" class="checkmark">✓</span>
-              </button>
-            </div>
           }
         </div>
       </div>
@@ -256,7 +263,16 @@ import { CountriesService, Country } from '../../../../core/services/countries.s
         transform: scale(0.98);
       }
 
-      .flag {
+      .flag-image {
+        width: 32px;
+        height: 24px;
+        object-fit: cover;
+        border-radius: 4px;
+        flex-shrink: 0;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+      }
+
+      .flag-emoji {
         font-size: 22px;
         width: 32px;
         text-align: center;
@@ -287,10 +303,17 @@ import { CountriesService, Country } from '../../../../core/services/countries.s
       }
     }
 
+    .global-option-fixed {
+      padding: 8px 24px;
+      border-bottom: 2px solid var(--sj-border);
+      flex-shrink: 0;
+      background: white;
+    }
+
     .global-option {
-      border-top: 1px solid var(--sj-border);
-      margin-top: 8px;
-      padding-top: 16px;
+      border-top: none;
+      margin-top: 0;
+      padding-top: 0;
     }
 
     .loading-message {
@@ -348,10 +371,16 @@ export class LocationPickerModalComponent implements OnInit {
 
   selectLocation(code: string): void {
     this.locationSelected.emit(code);
+    this.resetSearch();
     this.close();
   }
 
   close(): void {
+    this.resetSearch();
     this.closed.emit();
+  }
+
+  private resetSearch(): void {
+    this.searchQuery = '';
   }
 }

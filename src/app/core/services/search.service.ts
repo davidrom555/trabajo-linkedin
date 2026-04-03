@@ -1,6 +1,7 @@
-import { Injectable, inject, signal, computed } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { Job } from '../models/job.model';
 import { LinkedInApiService } from './linkedin-api.service';
+import { JobService } from './job.service';
 
 interface SearchParams {
   query: string;
@@ -10,6 +11,7 @@ interface SearchParams {
 @Injectable({ providedIn: 'root' })
 export class SearchService {
   private readonly linkedInApi = inject(LinkedInApiService);
+  private readonly jobService = inject(JobService);
 
   // Estado simple
   private readonly _jobs = signal<Job[]>([]);
@@ -46,8 +48,11 @@ export class SearchService {
 
       console.log('[SearchService] ✓ Jobs obtenidos:', jobs.length);
 
-      // 3. Establecer datos
+      // 3. Establecer datos en SearchService
       this._jobs.set(jobs);
+
+      // 4. Sincronizar con JobService para que savedJobs() funcione correctamente
+      this.jobService.syncJobs(jobs);
     } catch (error: any) {
       console.error('[SearchService] ✗ Error:', error.message);
       this._error.set(error.message || 'Error en búsqueda');
@@ -64,5 +69,17 @@ export class SearchService {
     this._jobs.set([]);
     this._error.set(null);
     this._searchParams.set({ query: '', location: '' });
+  }
+
+  /**
+   * Actualizar el estado guardado de un trabajo específico
+   */
+  updateJobSavedState(jobId: string, isSaved: boolean): void {
+    console.log('[SearchService] Actualizar estado guardado:', { jobId, isSaved });
+    this._jobs.update(jobs =>
+      jobs.map(job =>
+        job.id === jobId ? { ...job, saved: isSaved } : job
+      )
+    );
   }
 }

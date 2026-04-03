@@ -14,13 +14,13 @@ import {
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
-  compassOutline,
   arrowUpOutline,
   refreshOutline,
   warningOutline,
 } from 'ionicons/icons';
 
 import { SearchService } from '../../core/services/search.service';
+import { JobService } from '../../core/services/job.service';
 import { JobsListComponent } from './components/jobs-list/jobs-list';
 import { SearchBarComponent } from './components/search-bar-new/search-bar.component';
 
@@ -47,8 +47,8 @@ import { SearchBarComponent } from './components/search-bar-new/search-bar.compo
       <div class="header-gradient">
         <ion-toolbar class="toolbar-transparent">
           <ion-title class="app-title">
-            <ion-icon name="compass-outline"></ion-icon>
-            SmartJob
+            <img src="icon.png" alt="LinkedFast" class="header-logo">
+            LinkedFast
           </ion-title>
         </ion-toolbar>
       </div>
@@ -136,9 +136,11 @@ import { SearchBarComponent } from './components/search-bar-new/search-bar.compo
       letter-spacing: -0.5px;
       text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 
-      ion-icon {
-        font-size: 28px;
-        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+      .header-logo {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
       }
     }
 
@@ -201,12 +203,13 @@ import { SearchBarComponent } from './components/search-bar-new/search-bar.compo
 })
 export class DashboardPage implements OnInit {
   readonly searchService = inject(SearchService);
+  readonly jobService = inject(JobService);
   readonly toastController = inject(ToastController);
   readonly cdr = inject(ChangeDetectorRef);
 
   constructor() {
     addIcons({
-      'compass-outline': compassOutline,
+
       'arrow-up-outline': arrowUpOutline,
       'refresh-outline': refreshOutline,
       'warning-outline': warningOutline,
@@ -242,7 +245,22 @@ export class DashboardPage implements OnInit {
    */
   onToggleSave(jobId: string): void {
     console.log('[Dashboard] Toggle save:', jobId);
-    this.showToast('💾 Oferta guardada', 'success');
+
+    // Obtener estado actual ANTES de togglear
+    const job = this.searchService.jobs().find(j => j.id === jobId);
+    const currentSaved = job?.saved ?? false;
+    const newSavedState = !currentSaved;
+
+    // Actualizar en JobService
+    this.jobService.toggleSaved(jobId);
+
+    // Sincronizar en SearchService
+    this.searchService.updateJobSavedState(jobId, newSavedState);
+
+    this.cdr.detectChanges();
+
+    const message = newSavedState ? '💾 Oferta guardada' : '🗑️ Oferta desmarcada';
+    this.showToast(message, 'success');
   }
 
   /**

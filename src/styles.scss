@@ -10,7 +10,7 @@
 @import "@ionic/angular/css/text-transformation.css";
 @import "@ionic/angular/css/flex-utils.css";
 
-/* ── SmartJob Agent – Premium B2B Palette ───────────────── */
+/* ── LinkedFast – LinkedIn-optimized Palette ───────────────── */
 :root {
   /* Background & Surface */
   --ion-background-color: #f9fafb;
@@ -25,19 +25,19 @@
   --sj-text-secondary: #6b7280;
   --sj-text-tertiary: #9ca3af;
 
-  /* Accent – Emerald */
-  --ion-color-primary: #059669;
-  --ion-color-primary-rgb: 5, 150, 105;
+  /* Accent – LinkedIn Blue */
+  --ion-color-primary: #0A66C2;
+  --ion-color-primary-rgb: 10, 102, 194;
   --ion-color-primary-contrast: #ffffff;
   --ion-color-primary-contrast-rgb: 255, 255, 255;
-  --ion-color-primary-shade: #047857;
-  --ion-color-primary-tint: #10b981;
-  --sj-emerald: #059669;
-  --sj-emerald-light: #d1fae5;
-  --sj-emerald-dark: #047857;
+  --ion-color-primary-shade: #004182;
+  --ion-color-primary-tint: #378fe9;
+  --sj-emerald: #0A66C2;
+  --sj-emerald-light: #e2f0fe;
+  --sj-emerald-dark: #004182;
 
   /* Match Score Gradient Stops */
-  --sj-match-high: #059669;
+  --sj-match-high: #0A66C2;
   --sj-match-mid: #f59e0b;
   --sj-match-low: #ef4444;
 
@@ -46,7 +46,7 @@
   --ion-toolbar-color: #1f2937;
   --ion-tab-bar-background: #ffffff;
   --ion-tab-bar-color: #9ca3af;
-  --ion-tab-bar-color-selected: #059669;
+  --ion-tab-bar-color-selected: #0A66C2;
 
   /* Card */
   --ion-card-background: #ffffff;
