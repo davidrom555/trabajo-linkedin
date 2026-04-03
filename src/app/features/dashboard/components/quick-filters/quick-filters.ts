@@ -1,4 +1,4 @@
-import { Component, Output, EventEmitter, Input } from '@angular/core';
+import { Component, Output, EventEmitter, Input, ChangeDetectionStrategy } from '@angular/core';
 import { IonButton, IonIcon, IonBadge } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { wifiOutline, briefcaseOutline, globeOutline, flashOutline, schoolOutline, trendingUpOutline, buildOutline } from 'ionicons/icons';
@@ -14,6 +14,7 @@ interface QuickFilter {
   selector: 'app-quick-filters',
   standalone: true,
   imports: [IonButton, IonIcon, IonBadge],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="filters-container">
       <div class="filters-scroll">

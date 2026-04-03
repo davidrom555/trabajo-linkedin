@@ -12,7 +12,9 @@
       "Bash(curl -s \"http://localhost:4201/api/jobs/search?q=developer&limit=2\")",
       "Bash(python3 -m json.tool)",
       "Bash(curl -s http://localhost:4201)",
-      "Bash(curl -s \"http://localhost:3333/api/jobs/search?q=angular+developer&location=Spain&limit=3\")"
+      "Bash(curl -s \"http://localhost:3333/api/jobs/search?q=angular+developer&location=Spain&limit=3\")",
+      "Bash(git add:*)",
+      "Bash(git commit -m 'feat: start performance optimization phase:*)"
     ]
   }
 }

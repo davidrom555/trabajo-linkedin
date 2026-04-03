@@ -1,4 +1,4 @@
-import { Component, Output, EventEmitter, Input, effect } from '@angular/core';
+import { Component, Output, EventEmitter, Input, effect, ChangeDetectionStrategy } from '@angular/core';
 import { IonSearchbar, IonButton, IonIcon } from '@ionic/angular/standalone';
 import { FormsModule } from '@angular/forms';
 import { addIcons } from 'ionicons';
@@ -10,6 +10,7 @@ import { Subject } from 'rxjs';
   selector: 'app-search-bar',
   standalone: true,
   imports: [IonSearchbar, IonButton, IonIcon, FormsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="search-container">
       <ion-searchbar
