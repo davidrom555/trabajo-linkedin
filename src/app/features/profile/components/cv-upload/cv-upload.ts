@@ -2,6 +2,7 @@ import { Component, inject, output } from '@angular/core';
 import {
   IonIcon,
   IonSpinner,
+  ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { cloudUploadOutline, documentTextOutline, checkmarkCircle } from 'ionicons/icons';
@@ -69,6 +70,7 @@ import { ProfileService } from '../../../../core/services/profile.service';
 })
 export class CvUploadComponent {
   readonly profileService = inject(ProfileService);
+  readonly toastCtrl = inject(ToastController);
   readonly uploaded = output<void>();
   isDragOver = false;
 
@@ -100,12 +102,44 @@ export class CvUploadComponent {
   }
 
   private async processFile(file: File): Promise<void> {
-    if (file.size > 10 * 1024 * 1024) {
-      // In production: show toast
-      console.warn('File too large');
-      return; 
+    // Validate file size
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      await this.showToast('El archivo es demasiado grande (máx 10MB)', 'danger');
+      return;
     }
-    await this.profileService.uploadCv(file);
-    this.uploaded.emit();
+
+    // Validate file type
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+
+    if (!allowedTypes.includes(file.type) && !file.name.match(/\.(pdf|doc|docx)$/i)) {
+      await this.showToast('Formato no válido. Usa PDF, DOC o DOCX', 'danger');
+      return;
+    }
+
+    try {
+      await this.profileService.uploadCv(file);
+      this.uploaded.emit();
+    } catch (err) {
+      await this.showToast('Error al procesar el CV', 'danger');
+      console.error('CV processing error:', err);
+    }
+  }
+
+  private async showToast(
+    message: string,
+    color: 'success' | 'danger' | 'primary'
+  ): Promise<void> {
+    const toast = await this.toastCtrl.create({
+      message,
+      duration: 2000,
+      position: 'bottom',
+      color,
+    });
+    await toast.present();
   }
 }

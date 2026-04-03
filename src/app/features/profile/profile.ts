@@ -12,6 +12,7 @@ import {
   IonFabButton,
   ActionSheetController,
   ToastController,
+  ModalController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
@@ -35,9 +36,12 @@ import {
   starOutline,
   flagOutline,
   alertCircleOutline,
+  closeOutline,
 } from 'ionicons/icons';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { ProfileService } from '../../core/services/profile.service';
 import { CvUploadComponent } from './components/cv-upload/cv-upload';
+import { EditProfileComponent } from './components/edit-profile/edit-profile';
 
 @Component({
   selector: 'app-profile',
@@ -897,6 +901,7 @@ export class ProfilePage {
   readonly profileService = inject(ProfileService);
   readonly actionSheetCtrl = inject(ActionSheetController);
   readonly toastCtrl = inject(ToastController);
+  readonly modalCtrl = inject(ModalController);
 
   constructor() {
     addIcons({
@@ -920,6 +925,7 @@ export class ProfilePage {
       'star-outline': starOutline,
       'flag-outline': flagOutline,
       'alert-circle-outline': alertCircleOutline,
+      'close-outline': closeOutline,
     });
   }
 
@@ -945,6 +951,12 @@ export class ProfilePage {
           text: 'Compartir perfil',
           icon: 'share-outline',
           handler: () => this.shareProfile(),
+        },
+        {
+          text: 'Eliminar perfil',
+          icon: 'trash-outline',
+          role: 'destructive',
+          handler: () => this.deleteProfile(),
         },
         {
           text: 'Cancelar',
@@ -988,24 +1000,118 @@ export class ProfilePage {
     });
   }
 
-  private editProfile(): void {
-    this.showToast('Editar perfil - Próximamente', 'primary');
+  private async editProfile(): Promise<void> {
+    const modal = await this.modalCtrl.create({
+      component: EditProfileComponent,
+      cssClass: 'edit-profile-modal',
+    });
+    await modal.present();
   }
 
-  private uploadCv(): void {
-    this.showToast('Subir CV - Abrir selector', 'primary');
+  private async uploadCv(): Promise<void> {
+    // Trigger the file input in CV upload component
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.click();
+      this.showToast('Selecciona un archivo CV', 'primary');
+    }
   }
 
-  private shareProfile(): void {
-    this.showToast('Perfil compartido', 'success');
+  private async shareProfile(): Promise<void> {
+    try {
+      const profile = this.profileService.profile();
+      if (!profile) {
+        this.showToast('No hay perfil para compartir', 'danger');
+        return;
+      }
+
+      const profileText = `
+Mi Perfil Profesional:
+${profile.fullName}
+${profile.headline || ''}
+
+Habilidades: ${profile.skills.join(', ')}
+Experiencia: ${profile.experience.length} roles
+Educación: ${profile.education.length} estudios
+Idiomas: ${profile.languages.join(', ')}
+
+Generado con SmartJob Agent - Tu buscador de empleos inteligente
+      `.trim();
+
+      // Use Web Share API if available
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Mi Perfil Profesional',
+          text: profileText,
+        });
+        this.showToast('Perfil compartido', 'success');
+      } else {
+        // Fallback: Copy to clipboard
+        await navigator.clipboard.writeText(profileText);
+        this.showToast('Perfil copiado al portapapeles', 'success');
+      }
+    } catch (err) {
+      console.error('Share error:', err);
+      this.showToast('Error al compartir perfil', 'danger');
+    }
   }
 
-  private takePhoto(): void {
-    this.showToast('Cámara - Próximamente', 'primary');
+  private async takePhoto(): Promise<void> {
+    try {
+      const image = await Camera.getPhoto({
+        quality: 90,
+        allowEditing: true,
+        resultType: CameraResultType.DataUrl,
+        source: CameraSource.Camera,
+      });
+
+      // In production: Upload image to server
+      this.showToast('Foto capturada (no implementado guardar)', 'success');
+      console.log('Photo taken:', image);
+    } catch (err) {
+      this.showToast('Error al capturar foto', 'danger');
+    }
   }
 
-  private choosePhoto(): void {
-    this.showToast('Galería - Próximamente', 'primary');
+  private async choosePhoto(): Promise<void> {
+    try {
+      const image = await Camera.getPhoto({
+        quality: 90,
+        allowEditing: true,
+        resultType: CameraResultType.DataUrl,
+        source: CameraSource.Photos,
+      });
+
+      // In production: Upload image to server
+      this.showToast('Foto seleccionada (no implementado guardar)', 'success');
+      console.log('Photo selected:', image);
+    } catch (err) {
+      this.showToast('Error al seleccionar foto', 'danger');
+    }
+  }
+
+  private async deleteProfile(): Promise<void> {
+    const actionSheet = await this.actionSheetCtrl.create({
+      header: '¿Eliminar perfil?',
+      subHeader: 'Esta acción no se puede deshacer',
+      buttons: [
+        {
+          text: 'Sí, eliminar',
+          role: 'destructive',
+          icon: 'trash-outline',
+          handler: async () => {
+            this.profileService.clearProfile();
+            await this.showToast('Perfil eliminado correctamente', 'success');
+          },
+        },
+        {
+          text: 'Cancelar',
+          role: 'cancel',
+          icon: 'close-outline',
+        },
+      ],
+    });
+    await actionSheet.present();
   }
 
   private async showToast(message: string, color: 'success' | 'danger' | 'primary'): Promise<void> {
