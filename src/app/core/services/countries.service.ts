@@ -51,8 +51,11 @@ export class CountriesService {
     this._error.set(null);
 
     try {
+      // Usar campos específicos para evitar errores de la API
       const response = await firstValueFrom(
-        this.http.get<RestCountriesData[]>('https://restcountries.com/v3.1/all')
+        this.http.get<RestCountriesData[]>(
+          'https://restcountries.com/v3.1/all?fields=cca2,name,region,flags'
+        )
       );
 
       console.log('[CountriesService] ✓ Países cargados:', response.length);
