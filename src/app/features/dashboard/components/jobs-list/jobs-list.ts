@@ -1,30 +1,25 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
-import {
-  IonSpinner,
-} from '@ionic/angular/standalone';
 import { CommonModule } from '@angular/common';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 import { Job } from '../../../../core/models/job.model';
 import { JobCardComponent } from '../job-card/job-card';
 import { EmptyStateComponent } from '../empty-state/empty-state.component';
+import { LoadingStateComponent } from '../loading-state/loading-state.component';
 
 @Component({
   selector: 'app-jobs-list',
   standalone: true,
   imports: [
-    IonSpinner,
     CommonModule,
     JobCardComponent,
     ScrollingModule,
     EmptyStateComponent,
+    LoadingStateComponent,
   ],
   template: `
     <div class="jobs-list-container">
       @if (isLoading) {
-        <div class="loading-state">
-          <ion-spinner name="crescent"></ion-spinner>
-          <p>Cargando empleos...</p>
-        </div>
+        <app-loading-state></app-loading-state>
       } @else if (jobs.length === 0) {
         <app-empty-state
           title="No hay ofertas disponibles"
@@ -81,24 +76,6 @@ import { EmptyStateComponent } from '../empty-state/empty-state.component';
       display: flex;
       flex-direction: column;
       gap: 8px;
-    }
-
-    .loading-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 60px 24px;
-      text-align: center;
-
-      ion-spinner {
-        margin-bottom: 16px;
-      }
-
-      p {
-        color: var(--sj-text-secondary);
-        margin: 0;
-      }
     }
 
     .jobs-list {

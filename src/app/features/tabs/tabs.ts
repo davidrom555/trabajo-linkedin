@@ -77,19 +77,20 @@ import { JobService } from '../../core/services/job.service';
       display: flex;
       justify-content: space-around;
       align-items: center;
-      
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      
-      border-top: 1px solid rgba(226, 232, 240, 0.8);
-      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
-      
-      padding-bottom: max(env(safe-area-inset-bottom), 12px);
-      padding-top: 8px;
+
+      background: rgba(255, 255, 255, 0.98);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+
+      border-top: 1px solid #e5e7eb;
+      box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.08),
+                  0 -1px 0 rgba(0, 0, 0, 0.05) inset;
+
+      padding-bottom: max(env(safe-area-inset-bottom), 16px);
+      padding-top: 12px;
       padding-left: env(safe-area-inset-left);
       padding-right: env(safe-area-inset-right);
-      
+
       flex-shrink: 0;
       z-index: 1000;
     }
@@ -100,24 +101,29 @@ import { JobService } from '../../core/services/job.service';
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 4px;
-      
+      gap: 6px;
+
       padding: 8px 24px;
       background: transparent;
       border: none;
       cursor: pointer;
-      
+
       color: var(--sj-text-tertiary);
-      transition: all 0.2s ease;
-      
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
+      border-radius: 12px;
     }
-    
+
+    .tab-button:hover {
+      background: rgba(5, 150, 105, 0.05);
+    }
+
     .tab-button:active {
-      transform: scale(0.95);
+      transform: scale(0.92);
     }
-    
+
     .tab-button.active {
       color: var(--sj-primary);
     }
@@ -130,23 +136,26 @@ import { JobService } from '../../core/services/job.service';
       justify-content: center;
       width: 48px;
       height: 48px;
-      border-radius: 16px;
-      transition: all 0.2s ease;
+      border-radius: 14px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      background: rgba(5, 150, 105, 0);
     }
-    
+
     .tab-button.active .tab-icon-wrapper {
       background: var(--sj-primary-soft);
+      box-shadow: 0 2px 8px rgba(5, 150, 105, 0.15);
     }
-    
+
     /* Tab Icon */
     .tab-icon {
       font-size: 24px;
       color: var(--sj-text-tertiary);
-      transition: all 0.2s ease;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    
+
     .tab-button.active .tab-icon {
       color: var(--sj-primary);
+      font-size: 26px;
     }
     
     /* Tab Label */
@@ -154,12 +163,13 @@ import { JobService } from '../../core/services/job.service';
       font-size: 11px;
       font-weight: 500;
       color: var(--sj-text-tertiary);
-      transition: all 0.2s ease;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      letter-spacing: 0.3px;
     }
-    
+
     .tab-button.active .tab-label {
       color: var(--sj-primary);
-      font-weight: 600;
+      font-weight: 700;
     }
     
     /* Tab Indicator */
@@ -184,23 +194,39 @@ import { JobService } from '../../core/services/job.service';
     /* Tab Badge */
     .tab-badge {
       position: absolute;
-      top: 4px;
-      right: 4px;
-      min-width: 18px;
-      height: 18px;
-      padding: 0 5px;
+      top: 2px;
+      right: 2px;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 6px;
       font-size: 10px;
-      font-weight: 700;
-      border-radius: 9px;
-      background: var(--sj-primary);
+      font-weight: 800;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--sj-primary) 0%, var(--sj-primary-dark) 100%);
       color: white;
       display: flex;
       align-items: center;
       justify-content: center;
-      animation: scaleIn 0.2s ease;
+      animation: badgePulse 0.4s cubic-bezier(0.4, 0, 0.2, 1);
       z-index: 10;
+      box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
+      border: 2px solid white;
     }
-    
+
+    @keyframes badgePulse {
+      0% {
+        transform: scale(0);
+        opacity: 0;
+      }
+      50% {
+        transform: scale(1.15);
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
     @keyframes scaleIn {
       from { transform: scale(0); }
       to { transform: scale(1); }

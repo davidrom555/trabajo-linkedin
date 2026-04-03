@@ -104,67 +104,98 @@ import { SearchBarComponent } from './components/search-bar-new/search-bar.compo
   styles: `
     .header-gradient {
       background: linear-gradient(135deg, var(--sj-primary) 0%, var(--sj-primary-dark) 100%);
-      padding: 16px 0;
-      border-radius: 0 0 24px 24px;
-      box-shadow: 0 4px 20px rgba(5, 150, 105, 0.3);
+      padding: 20px 0;
+      border-radius: 0 0 28px 28px;
+      box-shadow: 0 8px 32px rgba(5, 150, 105, 0.25),
+                  0 1px 0 rgba(255, 255, 255, 0.1) inset;
+      position: relative;
+    }
+
+    .header-gradient::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 0%, transparent 100%);
+      border-radius: 0 0 28px 28px;
+      pointer-events: none;
     }
 
     .toolbar-transparent {
       --background: transparent;
       --color: white;
+      --padding-start: 20px;
+      --padding-end: 20px;
     }
 
     .app-title {
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-weight: 700;
-      font-size: 22px;
+      gap: 12px;
+      font-weight: 800;
+      font-size: 24px;
+      letter-spacing: -0.5px;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 
       ion-icon {
-        font-size: 26px;
+        font-size: 28px;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
       }
     }
 
     .dashboard-content {
-      --background: var(--sj-surface);
+      --background: var(--sj-background);
     }
 
     .error-card {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 16px;
-      margin: 16px;
-      padding: 16px;
-      background: #fee2e2;
-      border-radius: 12px;
-      border-left: 4px solid #ef4444;
+      margin: 20px 20px 0 20px;
+      padding: 16px 20px;
+      background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+      border-radius: 16px;
+      border: 1.5px solid #fca5a5;
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.1);
+      animation: slideIn 0.3s ease-out;
+    }
 
-      ion-icon {
-        font-size: 24px;
-        color: #ef4444;
-        flex-shrink: 0;
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
       }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
 
-      .error-title {
-        margin: 0;
-        font-weight: 600;
-        color: #7f1d1d;
-        font-size: 14px;
-      }
+    .error-card ion-icon {
+      font-size: 24px;
+      color: #dc2626;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
 
-      .error-subtitle {
-        margin: 4px 0 0 0;
-        font-size: 12px;
-        color: #b91c1c;
-      }
+    .error-title {
+      margin: 0;
+      font-weight: 700;
+      color: #991b1b;
+      font-size: 15px;
+    }
+
+    .error-subtitle {
+      margin: 4px 0 0 0;
+      font-size: 13px;
+      color: #b91c1c;
     }
 
     .results-info {
       text-align: center;
-      padding: 16px;
-      font-size: 12px;
+      padding: 24px 16px;
+      font-size: 13px;
       color: var(--sj-text-tertiary);
+      font-weight: 500;
     }
   `
 })
