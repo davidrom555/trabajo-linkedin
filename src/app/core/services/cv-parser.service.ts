@@ -261,6 +261,8 @@ export class CvParserService {
       education,
       languages,
       location: location || '',
+      email: email || undefined,
+      phone: phone || undefined,
       cvFileName: fileName,
       cvUploadedAt: new Date(),
     };
@@ -317,11 +319,37 @@ export class CvParserService {
 
   private extractSkills(text: string): string[] {
     const found = new Set<string>();
+
+    // First, try to find a specific skills section
+    const skillSectionPattern = /(?:Skills?|Competencias|Habilidades)\s*[:\n]\s*([^\n]{20,}?)(?:\n\n|$)/i;
+    const skillSectionMatch = text.match(skillSectionPattern);
+
+    let skillText = text;
+    if (skillSectionMatch) {
+      skillText = skillSectionMatch[1];
+    }
+
+    // Extract skills from patterns
     for (const { pattern, skill } of this.SKILL_PATTERNS) {
-      if (pattern.test(text)) {
+      if (pattern.test(skillText)) {
         found.add(skill);
       }
     }
+
+    // Also extract custom skills mentioned (words in skills section that are capitalized)
+    if (skillSectionMatch) {
+      const customSkills = skillSectionMatch[1]
+        .split(/[,\n•·-]/)
+        .map(s => s.trim())
+        .filter(s => s.length > 2 && s.length < 50 && /^[A-Z]/.test(s));
+
+      customSkills.forEach(skill => {
+        if (!this.SKILL_PATTERNS.some(p => p.skill === skill)) {
+          found.add(skill);
+        }
+      });
+    }
+
     return [...found];
   }
 
@@ -394,29 +422,34 @@ export class CvParserService {
 
   private extractExperience(text: string): Experience[] {
     const experiences: Experience[] = [];
-    
+
     // Date pattern: 2020 - 2023 or 2020-2023 or 2020|2023
     const datePattern = /(\d{4})\s*[-–—|]\s*(\d{4}|Present|Actual|Presente)/gi;
     let match;
-    
+
     while ((match = datePattern.exec(text)) !== null) {
       const startYear = match[1];
       const endYear = /\d{4}/.test(match[2]) ? match[2] : undefined;
-      
-      // Get context around the date
+
+      // Get context around the date - expand window for better extraction
       const pos = match.index;
-      const context = text.substring(Math.max(0, pos - 200), pos + 200);
-      
+      const contextStart = Math.max(0, pos - 300);
+      const contextEnd = Math.min(text.length, pos + 300);
+      const context = text.substring(contextStart, contextEnd);
+
+      // Extract title and company from context
+      const { title, company } = this.extractTitleAndCompany(context, text.substring(contextStart, pos));
+
       experiences.push({
-        title: 'Posición',
-        company: 'Empresa',
+        title: title || 'Posición',
+        company: company || 'Empresa',
         startDate: `${startYear}-01`,
         endDate: endYear ? `${endYear}-01` : undefined,
-        description: '',
+        description: this.extractJobDescription(context),
         skills: this.extractSkills(context),
       });
     }
-    
+
     // Deduplicate
     const seen = new Set<string>();
     return experiences.filter(e => {
@@ -427,6 +460,55 @@ export class CvParserService {
     }).slice(0, 5);
   }
 
+  private extractTitleAndCompany(context: string, beforeDate: string): { title: string; company: string } {
+    // Try to find patterns like "Job Title at Company"
+    const titleCompanyPattern = /([A-Z][a-záéíóúñ\s]{2,30})\s+(?:at|en|at|@)\s+([A-Z][a-záéíóúñ\s]{2,40})/i;
+    const match = context.match(titleCompanyPattern);
+
+    if (match) {
+      return {
+        title: match[1].trim(),
+        company: match[2].trim(),
+      };
+    }
+
+    // Alternative: Look for company name patterns (in caps or with Ltd, Inc, etc.)
+    const companyPattern = /\b([A-Z][a-záéíóúñ\w\s&.,]{2,40}(?:Ltd|Inc|Corp|SA|SL|LLC)?)\b/;
+    const companyMatch = beforeDate.match(companyPattern);
+
+    // Extract lines from context for title
+    const lines = context.split('\n').filter(l => l.trim().length > 0);
+    let title = '';
+    let company = companyMatch ? companyMatch[1].trim() : '';
+
+    // Find likely title in previous lines
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      // Likely title: not too short, not too long, capitalized
+      if (line.length > 5 && line.length < 80 &&
+          /^[A-Z]/.test(line) &&
+          !line.includes('@') &&
+          !line.includes('http')) {
+        title = line;
+      }
+    }
+
+    return { title, company };
+  }
+
+  private extractJobDescription(context: string): string {
+    const lines = context.split('\n')
+      .map(l => l.trim())
+      .filter(l => l.length > 10 && l.length < 150);
+
+    // Get a reasonable description (usually in the middle lines)
+    if (lines.length > 2) {
+      return lines.slice(1, 3).join(' ');
+    }
+
+    return '';
+  }
+
   // ── Education Extraction ────────────────────────────────
 
   private extractEducation(text: string): Education[] {
@@ -434,21 +516,85 @@ export class CvParserService {
     const patterns = [
       /(?:Licenciatura|Grado|Bachelor|Master|Máster|MBA|PhD|Doctorado)\s+(?:en\s+)?([^\n,]{3,50})/gi,
     ];
-    
+
     for (const pattern of patterns) {
       let match;
       while ((match = pattern.exec(text)) !== null) {
+        const degree = match[0];
+        const field = match[1] || 'General';
+
+        // Get context to find institution
+        const pos = match.index;
+        const contextStart = Math.max(0, pos - 200);
+        const contextEnd = Math.min(text.length, pos + 200);
+        const context = text.substring(contextStart, contextEnd);
+
+        const institution = this.extractInstitution(context);
+        const { startDate, endDate } = this.extractEducationDates(context);
+
         educations.push({
-          degree: match[0],
-          institution: 'Institución',
-          field: match[1] || 'General',
-          startDate: '',
-          endDate: '',
+          degree,
+          institution: institution || 'Institución',
+          field,
+          startDate,
+          endDate,
         });
       }
     }
-    
-    return educations.slice(0, 5);
+
+    // Deduplicate
+    const seen = new Set<string>();
+    return educations.filter(e => {
+      const key = `${e.degree}-${e.institution}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 5);
+  }
+
+  private extractInstitution(context: string): string {
+    // Look for patterns like "at University of X" or "Universidad de X"
+    const universityPattern = /(?:Universidad|University|Institute|Instituo|Escuela|School)\s+(?:de\s+)?([A-Za-záéíóúñÁÉÍÓÚÑ\s&.,]{3,50})/i;
+    const match = context.match(universityPattern);
+
+    if (match) {
+      return match[1].trim();
+    }
+
+    // Alternative: look for capitalized organizations in the context
+    const lines = context.split('\n')
+      .map(l => l.trim())
+      .filter(l => l.length > 5 && l.length < 100 && /^[A-Z]/.test(l));
+
+    if (lines.length > 0) {
+      return lines[0];
+    }
+
+    return '';
+  }
+
+  private extractEducationDates(context: string): { startDate: string; endDate?: string } {
+    // Look for date patterns in education context
+    const datePattern = /(\d{4})\s*[-–—|]\s*(\d{4}|Present|Actual|Presente|Today)/i;
+    const match = context.match(datePattern);
+
+    if (match) {
+      const startYear = match[1];
+      const endYear = /\d{4}/.test(match[2]) ? match[2] : undefined;
+      return {
+        startDate: `${startYear}-01`,
+        endDate: endYear ? `${endYear}-01` : undefined,
+      };
+    }
+
+    // Alternative: look for just a year
+    const yearPattern = /(\d{4})/;
+    const yearMatch = context.match(yearPattern);
+    if (yearMatch) {
+      return { startDate: `${yearMatch[1]}-01` };
+    }
+
+    return { startDate: '' };
   }
 
   // ── Languages ───────────────────────────────────────────
@@ -464,8 +610,36 @@ export class CvParserService {
   // ── Summary ─────────────────────────────────────────────
 
   private extractSummary(text: string): string {
-    const match = text.match(/(?:Resumen|Summary|Perfil|Profile)\s*[:\n]\s*([^\n]{50,300})/i);
-    return match ? match[1].trim() : '';
+    // Try to find explicit summary section
+    const summaryPatterns = [
+      /(?:Resumen|Summary|Perfil|Profile|Sobre mí|About me)\s*[:\n]\s*([^\n]{50,300})/i,
+      /(?:Objetivo|Objetivo profesional|Professional objective)\s*[:\n]\s*([^\n]{50,300})/i,
+    ];
+
+    for (const pattern of summaryPatterns) {
+      const match = text.match(pattern);
+      if (match) {
+        return match[1].trim();
+      }
+    }
+
+    // If no explicit summary, extract first meaningful paragraph
+    const lines = text.split('\n')
+      .map(l => l.trim())
+      .filter(l => l.length > 30 && l.length < 300);
+
+    // Skip header lines and find first descriptive paragraph
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      // Skip lines that look like headers or dates
+      if (!/^\d{4}|^(?:Experiencia|Education|Skills|Idiomas)/i.test(line) &&
+          !line.includes('@') &&
+          !line.match(/\d{4}\s*[-–]\s*\d{4}/)) {
+        return line;
+      }
+    }
+
+    return '';
   }
 
   // ── Headline ────────────────────────────────────────────

@@ -8,6 +8,8 @@ export interface UserProfile {
   education: Education[];
   languages: string[];
   location: string;
+  email?: string;
+  phone?: string;
   cvFileName?: string;
   cvUploadedAt?: Date;
 }

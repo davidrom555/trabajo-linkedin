@@ -1,0 +1,13 @@
+// BACKUP DEL DASHBOARD ORIGINAL
+// Este archivo ha sido dividido en componentes modulares para mejor performance y mantenibilidad
+// Los componentes nuevos están en: src/app/features/dashboard/components/
+//
+// Componentes creados:
+// - SearchBarComponent (search-bar/)
+// - QuickFiltersComponent (quick-filters/)
+// - StatsCardComponent (stats-card/)
+// - JobsListComponent (jobs-list/)
+// - RecommendationBannerComponent (recommendation-banner/)
+//
+// El nuevo dashboard refactorizado está en dashboard-refactored.ts
+// El archivo dashboard.ts original será reemplazado con una re-exportación de la versión refactorizada

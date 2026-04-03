@@ -60,11 +60,6 @@ import { LinkedInApiService } from '../../core/services/linkedin-api.service';
 import { TimeFilter } from '../../core/models/job.model';
 import { JobCardComponent } from './components/job-card/job-card';
 import { TimeFilterComponent } from './components/time-filter/time-filter';
-import { SearchBarComponent } from './components/search-bar/search-bar';
-import { QuickFiltersComponent } from './components/quick-filters/quick-filters';
-import { StatsCardComponent } from './components/stats-card/stats-card';
-import { JobsListComponent } from './components/jobs-list/jobs-list';
-import { RecommendationBannerComponent } from './components/recommendation-banner/recommendation-banner';
 
 @Component({
   selector: 'app-dashboard',
@@ -92,11 +87,6 @@ import { RecommendationBannerComponent } from './components/recommendation-banne
     IonChip,
     JobCardComponent,
     TimeFilterComponent,
-    SearchBarComponent,
-    QuickFiltersComponent,
-    StatsCardComponent,
-    JobsListComponent,
-    RecommendationBannerComponent,
   ],
   template: `
     <!-- Header Moderno -->
@@ -183,19 +173,67 @@ import { RecommendationBannerComponent } from './components/recommendation-banne
         ></ion-refresher-content>
       </ion-refresher>
 
-      <!-- Stats Cards Component -->
-      <app-stats-card
-        [totalJobs]="jobService.stats().total"
-        [topScore]="jobService.stats().highMatch"
-        [avgScore]="jobService.stats().avgScore"
-        [remoteCount]="jobService.stats().remoteCount"
-      ></app-stats-card>
+      <!-- Stats Cards Modernos -->
+      <div class="stats-scroll-container">
+        <div class="stats-row">
+          <div class="stat-card primary" [class.pulse]="jobService.isLoading()">
+            <div class="stat-icon">
+              <ion-icon name="layers-outline"></ion-icon>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value">{{ jobService.stats().total }}</span>
+              <span class="stat-label">Ofertas</span>
+            </div>
+          </div>
+          
+          <div class="stat-card success">
+            <div class="stat-icon">
+              <ion-icon name="flash-outline"></ion-icon>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value">{{ jobService.stats().highMatch }}</span>
+              <span class="stat-label">Top Match</span>
+            </div>
+          </div>
+          
+          <div class="stat-card info">
+            <div class="stat-icon">
+              <ion-icon name="trending-up-outline"></ion-icon>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value">{{ jobService.stats().avgScore }}%</span>
+              <span class="stat-label">Match</span>
+            </div>
+          </div>
+          
+          <div class="stat-card remote">
+            <div class="stat-icon">
+              <ion-icon name="wifi-outline"></ion-icon>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value">{{ jobService.stats().remoteCount }}</span>
+              <span class="stat-label">Remoto</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      <!-- Quick Filters Component -->
-      <app-quick-filters
-        [activeFilter]="activeQuickFilter"
-        (filterSelect)="applyQuickFilterById($event)"
-      ></app-quick-filters>
+      <!-- Quick Filters -->
+      <div class="quick-filters-section">
+        <div class="quick-filters-scroll">
+          @for (filter of quickFilters; track filter.id) {
+            <button
+              (click)="applyQuickFilter(filter)"
+              class="quick-filter-btn"
+              [class.active]="filter.active"
+              [style.--filter-color]="filter.color"
+            >
+              <ion-icon [name]="filter.icon"></ion-icon>
+              <span>{{ filter.label }}</span>
+            </button>
+          }
+        </div>
+      </div>
 
       <!-- Profile-Based Recommendations -->
       @if (profileService.hasProfile()) {
@@ -304,15 +342,6 @@ import { RecommendationBannerComponent } from './components/recommendation-banne
             }
           </div>
         } @else {
-          <!-- Top Match Recommendation -->
-          @if (jobService.filteredJobs()[0] && profileService.hasProfile()) {
-            <app-recommendation-banner
-              [topJob]="jobService.filteredJobs()[0]"
-              (viewJob)="onApply($event)"
-              (save)="onToggleSave($event)"
-            ></app-recommendation-banner>
-          }
-
           <!-- Results Info -->
           <div class="results-header">
             <span class="results-count">
@@ -325,17 +354,28 @@ import { RecommendationBannerComponent } from './components/recommendation-banne
             }
           </div>
           
-          <!-- Jobs List Component -->
-          <app-jobs-list
-            [jobs]="jobService.filteredJobs()"
-            [userSkills]="profileService.profile()?.skills ?? []"
-            [isLoading]="jobService.isLoading()"
-            [hasMore]="false"
-            (jobSave)="onToggleSave($event)"
-            (jobDismiss)="onDismiss($event)"
-            (jobApply)="onApply($event)"
-            (loadMore)="loadMore()"
-          ></app-jobs-list>
+          <!-- Jobs List -->
+          <ion-list lines="none" class="jobs-list">
+            @for (job of jobService.filteredJobs(); track job.id; let i = $index) {
+              <app-job-card
+                [job]="job"
+                [userSkills]="profileService.profile()?.skills ?? []"
+                (save)="onToggleSave($event)"
+                (dismiss)="onDismiss($event)"
+                (apply)="onApply($event)"
+                [style.animation-delay]="i * 50 + 'ms'"
+                class="job-card-animated"
+              />
+            }
+          </ion-list>
+          
+          <!-- Load More -->
+          <div class="load-more-container">
+            <button class="load-more-btn" (click)="loadMore()">
+              <ion-icon name="arrow-up-outline"></ion-icon>
+              Cargar más ofertas
+            </button>
+          </div>
         }
       }
     </ion-content>
@@ -1586,9 +1626,6 @@ export class DashboardPage implements OnInit {
   isLocationModalOpen = false;
   tempMinSalary: number | null = null;
 
-  // Quick Filter State
-  activeQuickFilter = '';
-
   constructor() {
     addIcons({
       'trending-up-outline': trendingUpOutline,
@@ -1798,37 +1835,6 @@ export class DashboardPage implements OnInit {
         this.jobService.setSelectedSources(filter.active ? ['linkedin'] : ['all']);
         break;
     }
-  }
-
-  applyQuickFilterById(filterId: string): void {
-    const isActive = this.activeQuickFilter === filterId;
-
-    switch (filterId) {
-      case 'remote':
-        this.jobService.setRemoteOnly(!isActive);
-        break;
-      case 'global':
-        this.jobService.setLocation(!isActive ? 'Global' : '');
-        break;
-      case 'trending':
-        this.jobService.setTimeFilter(!isActive ? '24h' : '7d');
-        break;
-      case 'junior':
-        this.jobService.setSearchQuery(!isActive ? 'junior' : '');
-        break;
-      case 'senior':
-        this.jobService.setSearchQuery(!isActive ? 'senior' : '');
-        break;
-      case 'startup':
-        this.jobService.setSearchQuery(!isActive ? 'startup' : '');
-        break;
-      case 'fulltime':
-        this.jobService.setSearchQuery(!isActive ? 'full time' : '');
-        break;
-    }
-
-    // Toggle active state
-    this.activeQuickFilter = isActive ? '' : filterId;
   }
 
   // Refresh

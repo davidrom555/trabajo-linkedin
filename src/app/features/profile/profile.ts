@@ -153,7 +153,7 @@ import { CvUploadComponent } from './components/cv-upload/cv-upload';
 
         <!-- About Section -->
         @if (profile.summary) {
-          <div class="section-card">
+          <div class="section-card about-card">
             <div class="card-header">
               <div class="card-title">
                 <ion-icon name="person-outline" class="icon-primary"></ion-icon>
@@ -232,6 +232,15 @@ import { CvUploadComponent } from './components/cv-upload/cv-upload';
                     <h4 class="education-degree">{{ edu.degree }}</h4>
                     <p class="education-institution">{{ edu.institution }}</p>
                     <p class="education-field">{{ edu.field }}</p>
+                    @if (edu.startDate) {
+                      <p class="education-date">
+                        <ion-icon name="calendar-outline"></ion-icon>
+                        {{ formatDate(edu.startDate) }}
+                        @if (edu.endDate) {
+                          - {{ formatDate(edu.endDate) }}
+                        }
+                      </p>
+                    }
                   </div>
                 </div>
               }
@@ -266,14 +275,21 @@ import { CvUploadComponent } from './components/cv-upload/cv-upload';
             </div>
           </div>
           <div class="contact-list">
-            <div class="contact-item">
-              <ion-icon name="mail-outline"></ion-icon>
-              <span>{{ 'usuario@email.com' }}</span>
-            </div>
-            <div class="contact-item">
-              <ion-icon name="call-outline"></ion-icon>
-              <span>{{ '+34 600 000 000' }}</span>
-            </div>
+            @if (profile.email) {
+              <div class="contact-item">
+                <ion-icon name="mail-outline"></ion-icon>
+                <span>{{ profile.email }}</span>
+              </div>
+            }
+            @if (profile.phone) {
+              <div class="contact-item">
+                <ion-icon name="call-outline"></ion-icon>
+                <span>{{ profile.phone }}</span>
+              </div>
+            }
+            @if (!profile.email && !profile.phone) {
+              <p class="contact-empty">Sin información de contacto</p>
+            }
           </div>
         </div>
 
@@ -573,11 +589,20 @@ import { CvUploadComponent } from './components/cv-upload/cv-upload';
     }
     
     /* Summary */
+    .about-card {
+      margin-bottom: 12px !important;
+    }
+
     .summary-text {
       font-size: 14px;
-      line-height: 1.7;
+      line-height: 1.6;
       color: var(--sj-text-secondary);
       margin: 0;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     
     /* Skills Grid */
@@ -697,8 +722,11 @@ import { CvUploadComponent } from './components/cv-upload/cv-upload';
     .timeline-description {
       font-size: 13px;
       color: var(--sj-text-secondary);
-      line-height: 1.5;
-      margin: 0;
+      line-height: 1.6;
+      margin: 8px 0 0 0;
+      padding: 10px;
+      background: var(--sj-surface-elevated);
+      border-radius: 8px;
     }
     
     /* Education */
@@ -748,6 +776,19 @@ import { CvUploadComponent } from './components/cv-upload/cv-upload';
       color: var(--sj-text-tertiary);
       margin: 0;
     }
+
+    .education-date {
+      font-size: 12px;
+      color: var(--sj-text-tertiary);
+      margin: 6px 0 0 0;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+
+      ion-icon {
+        font-size: 12px;
+      }
+    }
     
     /* Languages */
     .languages-list {
@@ -779,17 +820,27 @@ import { CvUploadComponent } from './components/cv-upload/cv-upload';
       flex-direction: column;
       gap: 12px;
     }
-    
+
+    .contact-empty {
+      font-size: 13px;
+      color: var(--sj-text-tertiary);
+      margin: 0;
+      font-style: italic;
+    }
+
     .contact-item {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 12px;
       font-size: 14px;
       color: var(--sj-text-secondary);
-      
+      word-break: break-all;
+
       ion-icon {
         font-size: 18px;
         color: var(--sj-text-tertiary);
+        flex-shrink: 0;
+        margin-top: 2px;
       }
     }
     
