@@ -5,6 +5,7 @@
 
 /* Importaciones base */
 @import "tailwindcss" prefix(tw-);
+@import "flag-icons/css/flag-icons.min.css";
 
 /* ═══════════════════════════════════════════════════════════
    VARIABLES CSS - Design Tokens
