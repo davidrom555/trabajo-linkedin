@@ -9,8 +9,7 @@ interface LocationOption {
   code: string;
   name: string;
   region: string;
-  flag: string; // emoji fallback
-  countryCode: string; // ISO 3166-1 alpha-2 code for flag-icons
+  flag: string;
 }
 
 @Component({
@@ -52,13 +51,7 @@ interface LocationOption {
                 [class.selected]="location.code === selectedLocation"
                 (click)="selectLocation(location.code)"
               >
-                <span class="flag-wrapper">
-                  @if (location.countryCode) {
-                    <span [class]="'fi fi-' + location.countryCode" class="flag-icon"></span>
-                  } @else {
-                    <span class="flag-fallback">{{ location.flag }}</span>
-                  }
-                </span>
+                <span class="flag">{{ location.flag }}</span>
                 <span class="name">{{ location.name }}</span>
                 <span
                   *ngIf="location.code === selectedLocation"
@@ -264,26 +257,12 @@ interface LocationOption {
         transform: scale(0.98);
       }
 
-      .flag-wrapper {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
-        height: 20px;
+      .flag {
+        font-size: 22px;
+        width: 32px;
+        text-align: center;
         flex-shrink: 0;
-        border-radius: 3px;
-        overflow: hidden;
-      }
-
-      .flag-icon {
-        width: 100%;
-        height: 100%;
-        display: block;
-      }
-
-      .flag-fallback {
-        font-size: 18px;
-        line-height: 20px;
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
       }
 
       .name {
@@ -325,30 +304,30 @@ export class LocationPickerModalComponent {
 
   private allLocations: LocationOption[] = [
     // Europa
-    { code: 'Spain', name: 'España', region: 'Europa', flag: '🇪🇸', countryCode: 'es' },
-    { code: 'United Kingdom', name: 'Reino Unido', region: 'Europa', flag: '🇬🇧', countryCode: 'gb' },
-    { code: 'Germany', name: 'Alemania', region: 'Europa', flag: '🇩🇪', countryCode: 'de' },
-    { code: 'France', name: 'Francia', region: 'Europa', flag: '🇫🇷', countryCode: 'fr' },
-    { code: 'Italy', name: 'Italia', region: 'Europa', flag: '🇮🇹', countryCode: 'it' },
-    { code: 'Portugal', name: 'Portugal', region: 'Europa', flag: '🇵🇹', countryCode: 'pt' },
-    { code: 'Netherlands', name: 'Países Bajos', region: 'Europa', flag: '🇳🇱', countryCode: 'nl' },
+    { code: 'Spain', name: 'España', region: 'Europa', flag: '🇪🇸' },
+    { code: 'United Kingdom', name: 'Reino Unido', region: 'Europa', flag: '🇬🇧' },
+    { code: 'Germany', name: 'Alemania', region: 'Europa', flag: '🇩🇪' },
+    { code: 'France', name: 'Francia', region: 'Europa', flag: '🇫🇷' },
+    { code: 'Italy', name: 'Italia', region: 'Europa', flag: '🇮🇹' },
+    { code: 'Portugal', name: 'Portugal', region: 'Europa', flag: '🇵🇹' },
+    { code: 'Netherlands', name: 'Países Bajos', region: 'Europa', flag: '🇳🇱' },
 
     // Americas
-    { code: 'United States', name: 'Estados Unidos', region: 'Americas', flag: '🇺🇸', countryCode: 'us' },
-    { code: 'Canada', name: 'Canadá', region: 'Americas', flag: '🇨🇦', countryCode: 'ca' },
-    { code: 'Mexico', name: 'México', region: 'Americas', flag: '🇲🇽', countryCode: 'mx' },
-    { code: 'Brazil', name: 'Brasil', region: 'Americas', flag: '🇧🇷', countryCode: 'br' },
-    { code: 'Argentina', name: 'Argentina', region: 'Americas', flag: '🇦🇷', countryCode: 'ar' },
-    { code: 'Chile', name: 'Chile', region: 'Americas', flag: '🇨🇱', countryCode: 'cl' },
-    { code: 'Colombia', name: 'Colombia', region: 'Americas', flag: '🇨🇴', countryCode: 'co' },
+    { code: 'United States', name: 'Estados Unidos', region: 'Americas', flag: '🇺🇸' },
+    { code: 'Canada', name: 'Canadá', region: 'Americas', flag: '🇨🇦' },
+    { code: 'Mexico', name: 'México', region: 'Americas', flag: '🇲🇽' },
+    { code: 'Brazil', name: 'Brasil', region: 'Americas', flag: '🇧🇷' },
+    { code: 'Argentina', name: 'Argentina', region: 'Americas', flag: '🇦🇷' },
+    { code: 'Chile', name: 'Chile', region: 'Americas', flag: '🇨🇱' },
+    { code: 'Colombia', name: 'Colombia', region: 'Americas', flag: '🇨🇴' },
 
     // Asia
-    { code: 'India', name: 'India', region: 'Asia', flag: '🇮🇳', countryCode: 'in' },
-    { code: 'Japan', name: 'Japón', region: 'Asia', flag: '🇯🇵', countryCode: 'jp' },
-    { code: 'Singapore', name: 'Singapur', region: 'Asia', flag: '🇸🇬', countryCode: 'sg' },
+    { code: 'India', name: 'India', region: 'Asia', flag: '🇮🇳' },
+    { code: 'Japan', name: 'Japón', region: 'Asia', flag: '🇯🇵' },
+    { code: 'Singapore', name: 'Singapur', region: 'Asia', flag: '🇸🇬' },
 
     // Remote
-    { code: 'Remote', name: 'Remoto / Anywhere', region: 'Especial', flag: '🌐', countryCode: '' },
+    { code: 'Remote', name: 'Remoto / Anywhere', region: 'Especial', flag: '🌐' },
   ];
 
   get groupedLocations$(): Map<string, LocationOption[]> {

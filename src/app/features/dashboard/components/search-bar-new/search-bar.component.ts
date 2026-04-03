@@ -36,8 +36,7 @@ import { LocationPickerModalComponent } from '../location-picker-modal/location-
       <!-- Location Selector -->
       <div class="location-selector" (click)="showLocationModal()">
         <ion-icon name="location-outline"></ion-icon>
-        <span class="location-name">{{ getLocationName() }}</span>
-        <span class="location-flag" [class]="'fi fi-' + getCountryCode()"></span>
+        <span>{{ getLocationDisplayName() }}</span>
       </div>
     </div>
 
@@ -125,12 +124,12 @@ import { LocationPickerModalComponent } from '../location-picker-modal/location-
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 12px 14px;
+      padding: 12px 18px;
       background: white;
       border-radius: 14px;
       cursor: pointer;
       border: 1.5px solid var(--sj-border);
-      font-size: 14px;
+      font-size: 15px;
       color: var(--sj-text-primary);
       font-weight: 500;
       transition: all 0.2s ease;
@@ -151,26 +150,6 @@ import { LocationPickerModalComponent } from '../location-picker-modal/location-
       font-size: 18px;
       color: var(--sj-primary);
       flex-shrink: 0;
-    }
-
-    .location-flag {
-      width: 20px;
-      height: 14px;
-      display: block;
-      flex-shrink: 0;
-      border-radius: 2px;
-      overflow: hidden;
-    }
-
-    .location-flag.fi {
-      background-size: contain;
-      background-position: center;
-      background-repeat: no-repeat;
-    }
-
-    .location-name {
-      flex: 1;
-      text-align: center;
     }
   `
 })
@@ -224,54 +203,28 @@ export class SearchBarComponent {
     this.onSearch();
   }
 
-  private readonly countryCodeMap: { [key: string]: string } = {
-    '': 'globe',
-    'Spain': 'es',
-    'United Kingdom': 'gb',
-    'Germany': 'de',
-    'France': 'fr',
-    'Italy': 'it',
-    'Portugal': 'pt',
-    'Netherlands': 'nl',
-    'United States': 'us',
-    'Canada': 'ca',
-    'Mexico': 'mx',
-    'Brazil': 'br',
-    'Argentina': 'ar',
-    'Chile': 'cl',
-    'Colombia': 'co',
-    'India': 'in',
-    'Japan': 'jp',
-    'Singapore': 'sg',
-    'Remote': 'globe',
-  };
-
-  getLocationName(): string {
+  getLocationDisplayName(): string {
     const locationMap: { [key: string]: string } = {
-      '': 'Todo el mundo',
-      'Spain': 'España',
-      'United Kingdom': 'Reino Unido',
-      'Germany': 'Alemania',
-      'France': 'Francia',
-      'Italy': 'Italia',
-      'Portugal': 'Portugal',
-      'Netherlands': 'Países Bajos',
-      'United States': 'Estados Unidos',
-      'Canada': 'Canadá',
-      'Mexico': 'México',
-      'Brazil': 'Brasil',
-      'Argentina': 'Argentina',
-      'Chile': 'Chile',
-      'Colombia': 'Colombia',
-      'India': 'India',
-      'Japan': 'Japón',
-      'Singapore': 'Singapur',
-      'Remote': 'Remoto',
+      '': '🌍 Todo el mundo',
+      'Spain': '🇪🇸 España',
+      'United Kingdom': '🇬🇧 Reino Unido',
+      'Germany': '🇩🇪 Alemania',
+      'France': '🇫🇷 Francia',
+      'Italy': '🇮🇹 Italia',
+      'Portugal': '🇵🇹 Portugal',
+      'Netherlands': '🇳🇱 Países Bajos',
+      'United States': '🇺🇸 Estados Unidos',
+      'Canada': '🇨🇦 Canadá',
+      'Mexico': '🇲🇽 México',
+      'Brazil': '🇧🇷 Brasil',
+      'Argentina': '🇦🇷 Argentina',
+      'Chile': '🇨🇱 Chile',
+      'Colombia': '🇨🇴 Colombia',
+      'India': '🇮🇳 India',
+      'Japan': '🇯🇵 Japón',
+      'Singapore': '🇸🇬 Singapur',
+      'Remote': '🌐 Remoto',
     };
-    return locationMap[this.location] || 'Todo el mundo';
-  }
-
-  getCountryCode(): string {
-    return this.countryCodeMap[this.location] || 'globe';
+    return locationMap[this.location] || '🌍 Todo el mundo';
   }
 }
