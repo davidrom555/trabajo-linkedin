@@ -206,12 +206,28 @@ export class SearchBarComponent {
   getLocationName(): string {
     const locationMap: { [key: string]: string } = {
       '': '🌍 Todo el mundo',
+      // Europa
       'Spain': '🇪🇸 España',
-      'United States': '🇺🇸 Estados Unidos',
       'United Kingdom': '🇬🇧 Reino Unido',
       'Germany': '🇩🇪 Alemania',
       'France': '🇫🇷 Francia',
-      'Remote': '🌐 Remoto',
+      'Italy': '🇮🇹 Italia',
+      'Portugal': '🇵🇹 Portugal',
+      'Netherlands': '🇳🇱 Países Bajos',
+      // Americas
+      'United States': '🇺🇸 Estados Unidos',
+      'Canada': '🇨🇦 Canadá',
+      'Mexico': '🇲🇽 México',
+      'Brazil': '🇧🇷 Brasil',
+      'Argentina': '🇦🇷 Argentina',
+      'Chile': '🇨🇱 Chile',
+      'Colombia': '🇨🇴 Colombia',
+      // Asia
+      'India': '🇮🇳 India',
+      'Japan': '🇯🇵 Japón',
+      'Singapore': '🇸🇬 Singapur',
+      // Especial
+      'Remote': '🌐 Remoto / Anywhere',
     };
     return locationMap[this.location] || '🌍 Todo el mundo';
   }
