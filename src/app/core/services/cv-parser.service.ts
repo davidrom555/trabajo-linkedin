@@ -1,96 +1,255 @@
 import { Injectable } from '@angular/core';
 import { UserProfile, Experience, Education } from '../models/profile.model';
 
-// pdfjs-dist types
-interface PDFDocumentProxy {
-  numPages: number;
-  getPage(pageNumber: number): Promise<PDFPageProxy>;
-}
-interface PDFPageProxy {
-  getTextContent(): Promise<{ items: Array<{ str: string }> }>;
-}
-
 @Injectable({ providedIn: 'root' })
 export class CvParserService {
-  private pdfjsLib: any = null;
 
-  /** Lazy-load pdf.js only when needed */
-  private async loadPdfJs(): Promise<any> {
-    if (this.pdfjsLib) return this.pdfjsLib;
-    const pdfjs = await import('pdfjs-dist');
-    // Disable worker to avoid CORS/version issues - runs in main thread (slower but works)
-    (pdfjs.GlobalWorkerOptions as any).workerSrc = '';
-    this.pdfjsLib = pdfjs;
-    return pdfjs;
-  }
-
-  /** Extract raw text from a PDF file */
-  async extractTextFromPdf(file: File): Promise<string> {
-    const pdfjs = await this.loadPdfJs();
-    const arrayBuffer = await file.arrayBuffer();
-    
-    console.log('[CvParser] Parsing PDF, size:', file.size);
-    
-    // Use disableStream and disableAutoFetch for better compatibility
-    const loadingTask = pdfjs.getDocument({
-      data: new Uint8Array(arrayBuffer),
-      useSystemFonts: true,
-      cMapUrl: null,
-      cMapPacked: false,
-      disableStream: true,
-      disableAutoFetch: true,
-    });
-    
-    const pdf: PDFDocumentProxy = await loadingTask.promise;
-
-    const pages: string[] = [];
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      const text = content.items.map((item: { str: string }) => item.str).join(' ');
-      pages.push(text);
-    }
-
-    return pages.join('\n');
-  }
-
-  /** Extract text from DOC/DOCX by reading as text (basic) */
-  async extractTextFromDoc(file: File): Promise<string> {
-    // For DOCX, we read the raw text content
-    // A proper implementation would use mammoth.js, but for now we extract what we can
-    const text = await file.text();
-    // Clean XML/binary artifacts
-    return text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-  }
-
-  /** Main entry: parse any supported CV file into a UserProfile */
+  /** Parse any supported CV file into a UserProfile */
   async parseFile(file: File): Promise<UserProfile> {
     let rawText: string;
 
-    if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-      rawText = await this.extractTextFromPdf(file);
-    } else {
-      rawText = await this.extractTextFromDoc(file);
+    console.log('[CvParser] Processing file:', file.name, 'Type:', file.type, 'Size:', file.size);
+
+    try {
+      if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+        rawText = await this.extractTextFromPdf(file);
+      } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+                 file.name.endsWith('.docx') ||
+                 file.name.endsWith('.doc')) {
+        rawText = await this.extractTextFromDoc(file);
+      } else {
+        rawText = await file.text();
+      }
+
+      if (!rawText || rawText.trim().length === 0) {
+        throw new Error('No text extracted from file');
+      }
+
+      console.log('[CvParser] ✓ Extracted text length:', rawText.length, 'characters');
+      console.log('[CvParser] Preview (first 200 chars):', rawText.substring(0, 200));
+
+      return this.parseText(rawText, file.name);
+
+    } catch (error) {
+      console.error('[CvParser] ✗ Error parsing file:', error);
+      throw new Error(`Error al procesar CV: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
+  }
 
-    console.log('[CvParser] Extracted text length:', rawText.length);
-    console.log('[CvParser] First 500 chars:', rawText.substring(0, 500));
+  /** Extract text from PDF - using dynamic import */
+  private async extractTextFromPdf(file: File): Promise<string> {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
 
-    return this.parseText(rawText, file.name);
+      // Verify it's a valid PDF (starts with %PDF)
+      const pdfHeader = String.fromCharCode(uint8Array[0], uint8Array[1], uint8Array[2], uint8Array[3]);
+      if (pdfHeader !== '%PDF') {
+        console.warn('[CvParser] Invalid PDF header, trying fallback');
+        return this.fallbackPdfExtraction(file);
+      }
+
+      // Set worker source BEFORE importing
+      const workerSrc = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
+      // Dynamic import to avoid issues
+      const pdfjs = await import('pdfjs-dist');
+
+      // Configure worker
+      (pdfjs as any).GlobalWorkerOptions.workerSrc = workerSrc;
+
+      const loadingTask = (pdfjs as any).getDocument({
+        data: uint8Array,
+        useSystemFonts: true,
+        disableFontFace: false,
+        cMapUrl: 'https://unpkg.com/pdfjs-dist@3.11.174/cmaps/',
+      });
+
+      const pdf = await loadingTask.promise;
+      let fullText = '';
+
+      // Extract text from all pages
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        try {
+          const page = await pdf.getPage(pageNum);
+          const textContent = await page.getTextContent();
+
+          const pageText = textContent.items
+            .map((item: any) => (item.str || '').trim())
+            .filter((s: string) => s.length > 0)
+            .join(' ');
+
+          fullText += pageText + '\n';
+        } catch (pageError) {
+          console.warn(`[CvParser] Error extracting page ${pageNum}:`, pageError);
+          continue;
+        }
+      }
+
+      if (fullText.trim().length === 0) {
+        console.warn('[CvParser] PDF extracted but no text found, trying fallback');
+        return this.fallbackPdfExtraction(file);
+      }
+
+      console.log('[CvParser] PDF text extracted, length:', fullText.length);
+      return fullText;
+
+    } catch (error) {
+      console.error('[CvParser] PDF extraction failed:', error);
+      return this.fallbackPdfExtraction(file);
+    }
+  }
+
+  /** Fallback PDF extraction for scanned or corrupted PDFs */
+  private async fallbackPdfExtraction(file: File): Promise<string> {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+
+      // Try multiple encodings
+      const encodings = ['utf-8', 'iso-8859-1', 'windows-1252'];
+      let bestText = '';
+      let bestScore = 0;
+
+      for (const encoding of encodings) {
+        try {
+          const decoder = new TextDecoder(encoding, { fatal: false });
+          const text = decoder.decode(uint8Array);
+
+          // Extract readable sequences - improved pattern
+          const readableParts = text.match(/[A-Za-zÁÉÍÓÚáéíóúÑñÜü0-9\-.,():\s]{4,}/g);
+          if (readableParts) {
+            const extracted = readableParts
+              .filter(part => part.length > 3 && !/^\s+$/.test(part))
+              .join(' ');
+
+            // Score based on length and content quality
+            const score = extracted.length * (extracted.match(/[A-Za-z]/g)?.length || 0);
+            if (score > bestScore) {
+              bestScore = score;
+              bestText = extracted;
+            }
+          }
+        } catch (e) {
+          // Continue to next encoding
+        }
+      }
+
+      // Secondary fallback: extract printable ASCII
+      if (bestText.length < 50) {
+        let asciiText = '';
+        let lastWasSpace = true;
+
+        for (let i = 0; i < uint8Array.length; i++) {
+          const byte = uint8Array[i];
+
+          if ((byte >= 32 && byte < 127) || byte === 10 || byte === 13) {
+            const char = String.fromCharCode(byte);
+            if (char === '\n' || char === '\r') {
+              if (!lastWasSpace) asciiText += ' ';
+              lastWasSpace = true;
+            } else if (char !== ' ') {
+              asciiText += char;
+              lastWasSpace = false;
+            } else if (!lastWasSpace) {
+              asciiText += ' ';
+              lastWasSpace = true;
+            }
+          }
+        }
+
+        const sequences = asciiText.match(/[A-Za-z\d\s]{4,}/g);
+        if (sequences && sequences.join(' ').length > bestText.length) {
+          bestText = sequences.join(' ');
+        }
+      }
+
+      console.log('[CvParser] PDF fallback extraction, length:', bestText.length);
+      return bestText.trim();
+
+    } catch (error) {
+      console.error('[CvParser] PDF fallback extraction failed:', error);
+      return '';
+    }
+  }
+
+  /** Extract text from DOC/DOCX using Mammoth.js */
+  private async extractTextFromDoc(file: File): Promise<string> {
+    try {
+      const mammoth = await import('mammoth');
+      const arrayBuffer = await file.arrayBuffer();
+
+      const result = await (mammoth as any).extractRawText({ arrayBuffer });
+
+      if (!result.value || result.value.trim().length === 0) {
+        console.warn('[CvParser] Mammoth extracted empty text, trying fallback');
+        return this.fallbackDocExtraction(file);
+      }
+
+      console.log('[CvParser] DOCX text extracted via Mammoth, length:', result.value.length);
+      return result.value;
+
+    } catch (error) {
+      console.error('[CvParser] Mammoth extraction failed:', error);
+      return this.fallbackDocExtraction(file);
+    }
+  }
+
+  /** Fallback for DOC/DOCX extraction */
+  private async fallbackDocExtraction(file: File): Promise<string> {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+
+      // Try to decode as text with different encodings
+      const encodings = ['utf-8', 'utf-16', 'iso-8859-1', 'windows-1252'];
+      let bestText = '';
+
+      for (const encoding of encodings) {
+        try {
+          const decoder = new TextDecoder(encoding, { fatal: false });
+          const text = decoder.decode(uint8Array);
+
+          // Extract readable sequences (filter out binary junk)
+          const readableParts = text.match(/[A-Za-zÁÉÍÓÚáéíóúÑñÜü0-9\s\-.,()]{4,}/g);
+          if (readableParts) {
+            const extracted = readableParts
+              .filter(part => part.length > 3 && !/^\s+$/.test(part))
+              .join(' ');
+
+            if (extracted.length > bestText.length) {
+              bestText = extracted;
+            }
+          }
+        } catch (e) {
+          // Continue to next encoding
+        }
+      }
+
+      console.log('[CvParser] DOC fallback extraction, length:', bestText.length);
+      return bestText;
+
+    } catch (error) {
+      console.error('[CvParser] DOC fallback extraction failed:', error);
+      return '';
+    }
   }
 
   /** Parse extracted text into a structured profile */
   private parseText(text: string, fileName: string): UserProfile {
-    const skills = this.extractSkills(text);
-    const name = this.extractName(text);
-    const email = this.extractEmail(text);
-    const phone = this.extractPhone(text);
-    const location = this.extractLocation(text);
-    const experience = this.extractExperience(text);
-    const education = this.extractEducation(text);
-    const languages = this.extractLanguages(text);
-    const headline = this.inferHeadline(text, skills, experience);
-    const summary = this.extractSummary(text);
+    // Clean text first
+    const cleanedText = this.cleanText(text);
+    
+    const skills = this.extractSkills(cleanedText);
+    const name = this.extractName(cleanedText);
+    const email = this.extractEmail(cleanedText);
+    const phone = this.extractPhone(cleanedText);
+    const location = this.extractLocation(cleanedText);
+    const experience = this.extractExperience(cleanedText);
+    const education = this.extractEducation(cleanedText);
+    const languages = this.extractLanguages(cleanedText);
+    const headline = this.inferHeadline(cleanedText, skills, experience);
+    const summary = this.extractSummary(cleanedText);
 
     return {
       id: crypto.randomUUID(),
@@ -107,105 +266,53 @@ export class CvParserService {
     };
   }
 
+  /** Clean extracted text */
+  private cleanText(text: string): string {
+    return text
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .replace(/\t/g, ' ')
+      .replace(/\s+/g, ' ')
+      .replace(/[^\x20-\x7E\n\xC0-\xFF]/g, ' ') // Keep printable ASCII and extended Latin
+      .trim();
+  }
+
   // ── Skill Extraction ────────────────────────────────────
 
   private readonly SKILL_PATTERNS: Array<{ pattern: RegExp; skill: string }> = [
-    // Programming languages
-    { pattern: /\bJavaScript\b/i, skill: 'JavaScript' },
-    { pattern: /\bTypeScript\b/i, skill: 'TypeScript' },
+    { pattern: /\bJavaScript\b|\bJS\b/i, skill: 'JavaScript' },
+    { pattern: /\bTypeScript\b|\bTS\b/i, skill: 'TypeScript' },
     { pattern: /\bPython\b/i, skill: 'Python' },
     { pattern: /\bJava\b(?!Script)/i, skill: 'Java' },
     { pattern: /\bC#\b|\.NET/i, skill: 'C#' },
     { pattern: /\bC\+\+\b/i, skill: 'C++' },
-    { pattern: /\bGolang\b|\bGo\b(?:\s+(?:lang|programming))/i, skill: 'Go' },
+    { pattern: /\bGo\b/i, skill: 'Go' },
     { pattern: /\bRust\b/i, skill: 'Rust' },
     { pattern: /\bRuby\b/i, skill: 'Ruby' },
     { pattern: /\bPHP\b/i, skill: 'PHP' },
     { pattern: /\bSwift\b/i, skill: 'Swift' },
     { pattern: /\bKotlin\b/i, skill: 'Kotlin' },
-    { pattern: /\bScala\b/i, skill: 'Scala' },
-    { pattern: /\bR\b(?:\s+(?:programming|language|studio))/i, skill: 'R' },
-
-    // Frontend
-    { pattern: /\bReact\b(?![\s-]*Native)/i, skill: 'React' },
+    { pattern: /\bReact\b/i, skill: 'React' },
     { pattern: /\bAngular\b/i, skill: 'Angular' },
-    { pattern: /\bVue\.?js?\b|\bVue\b/i, skill: 'Vue.js' },
-    { pattern: /\bSvelte\b/i, skill: 'Svelte' },
-    { pattern: /\bNext\.?js\b/i, skill: 'Next.js' },
-    { pattern: /\bNuxt\b/i, skill: 'Nuxt' },
+    { pattern: /\bVue\b/i, skill: 'Vue.js' },
+    { pattern: /\bNode\.?js\b/i, skill: 'Node.js' },
+    { pattern: /\bExpress\b/i, skill: 'Express' },
     { pattern: /\bHTML\b/i, skill: 'HTML' },
     { pattern: /\bCSS\b/i, skill: 'CSS' },
-    { pattern: /\bSCSS\b|\bSass\b/i, skill: 'SCSS' },
-    { pattern: /\bTailwind\b/i, skill: 'Tailwind CSS' },
-    { pattern: /\bBootstrap\b/i, skill: 'Bootstrap' },
-    { pattern: /\bjQuery\b/i, skill: 'jQuery' },
-
-    // Backend
-    { pattern: /\bNode\.?js\b/i, skill: 'Node.js' },
-    { pattern: /\bExpress\.?js?\b|\bExpress\b/i, skill: 'Express' },
-    { pattern: /\bNestJS\b/i, skill: 'NestJS' },
-    { pattern: /\bDjango\b/i, skill: 'Django' },
-    { pattern: /\bFlask\b/i, skill: 'Flask' },
-    { pattern: /\bFastAPI\b/i, skill: 'FastAPI' },
-    { pattern: /\bSpring\b/i, skill: 'Spring' },
-    { pattern: /\bLaravel\b/i, skill: 'Laravel' },
-    { pattern: /\bRails\b|Ruby\s+on\s+Rails/i, skill: 'Rails' },
-
-    // Cloud & DevOps
-    { pattern: /\bAWS\b|Amazon\s+Web\s+Services/i, skill: 'AWS' },
-    { pattern: /\bAzure\b/i, skill: 'Azure' },
-    { pattern: /\bGCP\b|Google\s+Cloud/i, skill: 'GCP' },
+    { pattern: /\bSQL\b/i, skill: 'SQL' },
+    { pattern: /\bGit\b/i, skill: 'Git' },
     { pattern: /\bDocker\b/i, skill: 'Docker' },
-    { pattern: /\bKubernetes\b|\bK8s\b/i, skill: 'Kubernetes' },
-    { pattern: /\bTerraform\b/i, skill: 'Terraform' },
-    { pattern: /\bCI\s*\/\s*CD\b/i, skill: 'CI/CD' },
-    { pattern: /\bJenkins\b/i, skill: 'Jenkins' },
-    { pattern: /\bGitHub\s+Actions\b/i, skill: 'GitHub Actions' },
-    { pattern: /\bAnsible\b/i, skill: 'Ansible' },
-
-    // Databases
-    { pattern: /\bPostgreSQL\b|\bPostgres\b/i, skill: 'PostgreSQL' },
-    { pattern: /\bMySQL\b/i, skill: 'MySQL' },
+    { pattern: /\bAWS\b/i, skill: 'AWS' },
+    { pattern: /\bAzure\b/i, skill: 'Azure' },
     { pattern: /\bMongoDB\b/i, skill: 'MongoDB' },
-    { pattern: /\bRedis\b/i, skill: 'Redis' },
-    { pattern: /\bElasticsearch\b/i, skill: 'Elasticsearch' },
-    { pattern: /\bDynamoDB\b/i, skill: 'DynamoDB' },
-    { pattern: /\bSQLite\b/i, skill: 'SQLite' },
-    { pattern: /\bCassandra\b/i, skill: 'Cassandra' },
-    { pattern: /\bFirebase\b/i, skill: 'Firebase' },
-    { pattern: /\bSupabase\b/i, skill: 'Supabase' },
-
-    // APIs & protocols
+    { pattern: /\bPostgreSQL\b/i, skill: 'PostgreSQL' },
+    { pattern: /\bMySQL\b/i, skill: 'MySQL' },
     { pattern: /\bGraphQL\b/i, skill: 'GraphQL' },
-    { pattern: /\bREST\b(?:ful)?/i, skill: 'REST' },
-    { pattern: /\bgRPC\b/i, skill: 'gRPC' },
-    { pattern: /\bWebSocket\b/i, skill: 'WebSocket' },
-
-    // Data & ML
-    { pattern: /\bMachine\s+Learning\b/i, skill: 'Machine Learning' },
-    { pattern: /\bDeep\s+Learning\b/i, skill: 'Deep Learning' },
-    { pattern: /\bTensorFlow\b/i, skill: 'TensorFlow' },
-    { pattern: /\bPyTorch\b/i, skill: 'PyTorch' },
-    { pattern: /\bPandas\b/i, skill: 'Pandas' },
-    { pattern: /\bNumPy\b/i, skill: 'NumPy' },
-    { pattern: /\bSpark\b/i, skill: 'Spark' },
-    { pattern: /\bKafka\b/i, skill: 'Kafka' },
-    { pattern: /\bAirflow\b/i, skill: 'Airflow' },
-
-    // Mobile
-    { pattern: /\bReact\s*Native\b/i, skill: 'React Native' },
-    { pattern: /\bFlutter\b/i, skill: 'Flutter' },
-    { pattern: /\bIonic\b/i, skill: 'Ionic' },
-    { pattern: /\bCapacitor\b/i, skill: 'Capacitor' },
-
-    // Tools & practices
-    { pattern: /\bGit\b(?!Hub|Lab)/i, skill: 'Git' },
+    { pattern: /\bREST\b/i, skill: 'REST' },
     { pattern: /\bLinux\b/i, skill: 'Linux' },
     { pattern: /\bAgile\b/i, skill: 'Agile' },
     { pattern: /\bScrum\b/i, skill: 'Scrum' },
     { pattern: /\bJira\b/i, skill: 'Jira' },
-    { pattern: /\bFigma\b/i, skill: 'Figma' },
-    { pattern: /\bSQL\b/i, skill: 'SQL' },
   ];
 
   private extractSkills(text: string): string[] {
@@ -221,26 +328,39 @@ export class CvParserService {
   // ── Name Extraction ─────────────────────────────────────
 
   private extractName(text: string): string {
-    // Typically the name is the very first meaningful text in a CV
-    const lines = text.split(/\n/).map((l) => l.trim()).filter(Boolean);
-    for (const line of lines.slice(0, 5)) {
-      // Skip lines that look like headers, emails, phones
-      if (line.includes('@') || /^\+?\d[\d\s\-()]{6,}/.test(line)) continue;
-      if (line.length > 60) continue;
-      // A name is usually 2-4 words, all capitalized
-      const words = line.split(/\s+/);
-      if (
-        words.length >= 2 &&
-        words.length <= 5 &&
-        words.every((w) => /^[A-ZÁÉÍÓÚÑÜ]/.test(w))
-      ) {
-        return line;
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    
+    // Pattern 1: Look for "Nombre: " or "Name: "
+    const namePattern = /(?:Nombre|Name)\s*[:\-]\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,4})/i;
+    const nameMatch = text.match(namePattern);
+    if (nameMatch) return nameMatch[1].trim();
+    
+    // Pattern 2: First 2-4 capitalized words in first 15 lines
+    for (const line of lines.slice(0, 15)) {
+      if (line.length > 50 || line.length < 5) continue;
+      if (line.includes('@') || line.includes('http')) continue;
+      if (/^(Curriculum|CV|Resume|Email|Tel|Phone|Address)/i.test(line)) continue;
+      
+      const words = line.split(/\s+/).filter(w => w.length > 1);
+      if (words.length >= 2 && words.length <= 4) {
+        if (words.every(w => /^[A-ZÁÉÍÓÚÑÜ][a-záéíóúñü]+$/.test(w))) {
+          return line;
+        }
       }
     }
-    // Fallback: first short line
-    const firstShort = lines.find((l) => l.length > 3 && l.length < 50 && !l.includes('@'));
-    return firstShort || '';
+    
+    // Pattern 3: All caps name
+    const capsMatch = text.match(/\b([A-ZÁÉÍÓÚÑÜ]{2,}(?:\s+[A-ZÁÉÍÓÚÑÜ]{2,}){1,3})\b/);
+    if (capsMatch) {
+      return capsMatch[1].split(' ').map(w => 
+        w.charAt(0) + w.slice(1).toLowerCase()
+      ).join(' ');
+    }
+    
+    return '';
   }
+
+  // ── Contact Info ────────────────────────────────────────
 
   private extractEmail(text: string): string {
     const match = text.match(/[\w.+-]+@[\w-]+\.[\w.]+/);
@@ -258,23 +378,14 @@ export class CvParserService {
     'Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Málaga', 'Bilbao', 'Zaragoza',
     'Buenos Aires', 'Santiago', 'Lima', 'Bogotá', 'México', 'Monterrey', 'Guadalajara',
     'London', 'Berlin', 'Paris', 'Amsterdam', 'Dublin', 'Lisbon', 'Milan', 'Rome',
-    'New York', 'San Francisco', 'Los Angeles', 'Chicago', 'Austin', 'Seattle', 'Boston',
+    'New York', 'San Francisco', 'Los Angeles', 'Chicago', 'Austin', 'Seattle',
     'Toronto', 'Vancouver', 'Sydney', 'Melbourne', 'Singapore', 'Tokyo',
     'Remote', 'Remoto',
   ];
 
   private extractLocation(text: string): string {
     for (const city of this.CITIES) {
-      const regex = new RegExp(`\\b${city}\\b`, 'i');
-      if (regex.test(text)) {
-        // Try to find "City, Country" pattern
-        const contextRegex = new RegExp(`${city}[,\\s]+([A-ZÁÉÍÓÚ][a-záéíóú]+(?:\\s+[A-ZÁÉÍÓÚ][a-záéíóú]+)?)`, 'i');
-        const contextMatch = text.match(contextRegex);
-        if (contextMatch) {
-          return `${city}, ${contextMatch[1]}`;
-        }
-        return city;
-      }
+      if (text.includes(city)) return city;
     }
     return '';
   }
@@ -283,171 +394,94 @@ export class CvParserService {
 
   private extractExperience(text: string): Experience[] {
     const experiences: Experience[] = [];
-
-    // Match patterns like "2020 - 2023" or "Jan 2020 - Present" or "2019 - Presente"
-    const dateRangePattern =
-      /(?:(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|Ene|Feb|Mar|Abr|May|Jun|Jul|Ago|Sep|Oct|Nov|Dic)[a-z]*\.?\s+)?(\d{4})\s*[-–—]\s*(?:(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|Ene|Feb|Mar|Abr|May|Jun|Jul|Ago|Sep|Oct|Nov|Dic)[a-z]*\.?\s+)?(\d{4}|[Pp]resent[e]?|[Aa]ctual)/g;
-
-    const lines = text.split(/\n/);
-    let matches: RegExpExecArray | null;
-
-    while ((matches = dateRangePattern.exec(text)) !== null) {
-      const startYear = matches[1];
-      const endRaw = matches[2];
-      const endYear = /\d{4}/.test(endRaw) ? endRaw : undefined;
-
-      // Look for context around this date range
-      const pos = matches.index;
-      const contextBefore = text.substring(Math.max(0, pos - 200), pos);
-      const contextAfter = text.substring(pos, Math.min(text.length, pos + 300));
-
-      // Try to extract title and company from surrounding text
-      const titleLine = contextBefore.split(/\n/).filter(Boolean).pop() || '';
-      const companyLine = contextAfter.split(/\n/).filter(Boolean)[1] || '';
-
+    
+    // Date pattern: 2020 - 2023 or 2020-2023 or 2020|2023
+    const datePattern = /(\d{4})\s*[-–—|]\s*(\d{4}|Present|Actual|Presente)/gi;
+    let match;
+    
+    while ((match = datePattern.exec(text)) !== null) {
+      const startYear = match[1];
+      const endYear = /\d{4}/.test(match[2]) ? match[2] : undefined;
+      
+      // Get context around the date
+      const pos = match.index;
+      const context = text.substring(Math.max(0, pos - 200), pos + 200);
+      
       experiences.push({
-        title: this.cleanLine(titleLine) || 'Posición',
-        company: this.cleanLine(companyLine) || 'Empresa',
+        title: 'Posición',
+        company: 'Empresa',
         startDate: `${startYear}-01`,
         endDate: endYear ? `${endYear}-01` : undefined,
-        description: this.cleanLine(contextAfter.substring(0, 150)),
-        skills: this.extractSkills(contextBefore + contextAfter),
+        description: '',
+        skills: this.extractSkills(context),
       });
     }
-
-    // Deduplicate by start date
+    
+    // Deduplicate
     const seen = new Set<string>();
-    return experiences.filter((e) => {
-      if (seen.has(e.startDate)) return false;
-      seen.add(e.startDate);
+    return experiences.filter(e => {
+      const key = `${e.startDate}-${e.company}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
       return true;
-    });
+    }).slice(0, 5);
   }
 
   // ── Education Extraction ────────────────────────────────
 
   private extractEducation(text: string): Education[] {
-    const degrees: Education[] = [];
-    const degreePatterns = [
-      /(?:Bachelor|Master|PhD|Doctorado|Licenciatura|Ingenier[íi]a|Grado|Máster|MBA|BSc|MSc|B\.?S\.?|M\.?S\.?)\s*(?:en|in|of|degree)?\s*([^\n,]{3,50})/gi,
+    const educations: Education[] = [];
+    const patterns = [
+      /(?:Licenciatura|Grado|Bachelor|Master|Máster|MBA|PhD|Doctorado)\s+(?:en\s+)?([^\n,]{3,50})/gi,
     ];
-
-    for (const pattern of degreePatterns) {
-      let match: RegExpExecArray | null;
+    
+    for (const pattern of patterns) {
+      let match;
       while ((match = pattern.exec(text)) !== null) {
-        const field = this.cleanLine(match[1]);
-        const surrounding = text.substring(
-          Math.max(0, match.index - 100),
-          Math.min(text.length, match.index + 200)
-        );
-
-        // Try to find university name
-        const uniPattern =
-          /(?:Universidad|University|Instituto|Institute|Politécnica|School|College|Universitat)\s+(?:de\s+)?([^\n,]{3,60})/i;
-        const uniMatch = surrounding.match(uniPattern);
-
-        degrees.push({
-          degree: this.cleanLine(match[0]),
-          institution: uniMatch
-            ? this.cleanLine(`${uniMatch[0]}`)
-            : 'Institución',
-          field: field || 'General',
-          startDate: this.findYear(surrounding, -1) || '',
-          endDate: this.findYear(surrounding, 1) || '',
+        educations.push({
+          degree: match[0],
+          institution: 'Institución',
+          field: match[1] || 'General',
+          startDate: '',
+          endDate: '',
         });
       }
     }
-
-    return degrees.slice(0, 5);
+    
+    return educations.slice(0, 5);
   }
 
   // ── Languages ───────────────────────────────────────────
 
-  private readonly LANGUAGE_LIST = [
-    'Español', 'Spanish', 'Inglés', 'English', 'Francés', 'French',
-    'Alemán', 'German', 'Portugués', 'Portuguese', 'Italiano', 'Italian',
-    'Chino', 'Chinese', 'Mandarín', 'Mandarin', 'Japonés', 'Japanese',
-    'Coreano', 'Korean', 'Árabe', 'Arabic', 'Ruso', 'Russian',
-    'Catalán', 'Catalonian', 'Euskera', 'Basque', 'Gallego', 'Galician',
-    'Holandés', 'Dutch', 'Sueco', 'Swedish', 'Polaco', 'Polish',
-  ];
-
   private extractLanguages(text: string): string[] {
-    const found = new Set<string>();
-    for (const lang of this.LANGUAGE_LIST) {
-      if (new RegExp(`\\b${lang}\\b`, 'i').test(text)) {
-        // Normalize to Spanish name
-        found.add(this.normalizeLanguage(lang));
-      }
-    }
-    return found.size > 0 ? [...found] : ['Español'];
-  }
-
-  private normalizeLanguage(lang: string): string {
-    const map: Record<string, string> = {
-      spanish: 'Español', english: 'Inglés', french: 'Francés',
-      german: 'Alemán', portuguese: 'Portugués', italian: 'Italiano',
-      chinese: 'Chino', mandarin: 'Mandarín', japanese: 'Japonés',
-      korean: 'Coreano', arabic: 'Árabe', russian: 'Ruso',
-      catalonian: 'Catalán', basque: 'Euskera', galician: 'Gallego',
-      dutch: 'Holandés', swedish: 'Sueco', polish: 'Polaco',
-    };
-    return map[lang.toLowerCase()] || lang;
+    const languages = ['Español', 'Inglés', 'Francés', 'Alemán', 'Portugués', 'Italiano', 'Chino', 'Japonés'];
+    const found = languages.filter(lang => 
+      text.toLowerCase().includes(lang.toLowerCase())
+    );
+    return found.length > 0 ? found : ['Español'];
   }
 
   // ── Summary ─────────────────────────────────────────────
 
   private extractSummary(text: string): string {
-    const patterns = [
-      /(?:Resumen|Summary|Perfil|Profile|About|Sobre\s+m[íi]|Acerca)\s*[:.\n]\s*([^\n]{20,300})/i,
-      /(?:Objetivo|Objective)\s*[:.\n]\s*([^\n]{20,300})/i,
-    ];
-    for (const pattern of patterns) {
-      const match = text.match(pattern);
-      if (match) return this.cleanLine(match[1]);
-    }
-    return '';
+    const match = text.match(/(?:Resumen|Summary|Perfil|Profile)\s*[:\n]\s*([^\n]{50,300})/i);
+    return match ? match[1].trim() : '';
   }
 
-  // ── Headline Inference ──────────────────────────────────
+  // ── Headline ────────────────────────────────────────────
 
-  private inferHeadline(
-    text: string,
-    skills: string[],
-    experience: Experience[]
-  ): string {
-    // Try to find a professional title in the text
-    const titlePattern =
-      /(?:Senior|Junior|Lead|Staff|Principal|Mid|Sr\.?|Jr\.?)\s+(?:Software|Frontend|Backend|Full[\s-]?Stack|DevOps|Cloud|Data|Mobile|Web|QA|ML|AI)\s+(?:Engineer|Developer|Architect|Manager|Analyst|Scientist|Designer)/i;
-    const titleMatch = text.match(titlePattern);
-    if (titleMatch) return titleMatch[0];
-
-    // Infer from experience
-    if (experience.length > 0) {
-      return experience[0].title;
+  private inferHeadline(text: string, skills: string[], experience: Experience[]): string {
+    const titlePattern = /(?:Senior|Junior|Lead|Developer|Engineer|Desarrollador)/i;
+    const match = text.match(titlePattern);
+    if (match) {
+      const context = text.substring(match.index || 0, (match.index || 0) + 50);
+      return context.split(/\n/)[0].trim();
     }
-
-    // Infer from skills
+    
     if (skills.length > 0) {
-      const topSkills = skills.slice(0, 3).join(', ');
-      return `Desarrollador · ${topSkills}`;
+      return `Desarrollador · ${skills.slice(0, 3).join(', ')}`;
     }
-
+    
     return 'Profesional';
-  }
-
-  // ── Utilities ───────────────────────────────────────────
-
-  private cleanLine(text: string): string {
-    return text
-      .replace(/\s+/g, ' ')
-      .replace(/^[\s\-•·|:]+/, '')
-      .trim();
-  }
-
-  private findYear(text: string, direction: number): string {
-    const years = [...text.matchAll(/\b(19|20)\d{2}\b/g)].map((m) => m[0]);
-    if (years.length === 0) return '';
-    return direction < 0 ? years[0] : years[years.length - 1];
   }
 }
