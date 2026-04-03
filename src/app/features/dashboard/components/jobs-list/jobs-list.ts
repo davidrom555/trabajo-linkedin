@@ -1,28 +1,22 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import {
   IonSpinner,
-  IonCard,
-  IonCardContent,
-  IonIcon
 } from '@ionic/angular/standalone';
 import { CommonModule } from '@angular/common';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 import { Job } from '../../../../core/models/job.model';
 import { JobCardComponent } from '../job-card/job-card';
-import { addIcons } from 'ionicons';
-import { documentTextOutline } from 'ionicons/icons';
+import { EmptyStateComponent } from '../empty-state/empty-state.component';
 
 @Component({
   selector: 'app-jobs-list',
   standalone: true,
   imports: [
     IonSpinner,
-    IonCard,
-    IonCardContent,
-    IonIcon,
     CommonModule,
     JobCardComponent,
-    ScrollingModule
+    ScrollingModule,
+    EmptyStateComponent,
   ],
   template: `
     <div class="jobs-list-container">
@@ -32,15 +26,16 @@ import { documentTextOutline } from 'ionicons/icons';
           <p>Cargando empleos...</p>
         </div>
       } @else if (jobs.length === 0) {
-        <div class="empty-state">
-          <ion-card class="empty-card">
-            <ion-card-content class="empty-content">
-              <ion-icon name="document-text-outline" class="empty-icon"></ion-icon>
-              <h3>No hay ofertas</h3>
-              <p>Ajusta tus filtros o prueba con otras búsquedas</p>
-            </ion-card-content>
-          </ion-card>
-        </div>
+        <app-empty-state
+          title="No hay ofertas disponibles"
+          description="No encontramos ofertas que coincidan con tu búsqueda. Intenta con términos diferentes."
+          iconName="document-text-outline"
+          [suggestions]="[
+            'Prueba palabras clave más generales',
+            'Ajusta tus filtros de ubicación',
+            'Revisa tu conexión a internet'
+          ]"
+        ></app-empty-state>
       } @else {
         <cdk-virtual-scroll-viewport class="jobs-list-viewport" [itemSize]="jobItemHeight">
           <div class="jobs-list">
@@ -106,41 +101,6 @@ import { documentTextOutline } from 'ionicons/icons';
       }
     }
 
-    .empty-state {
-      padding: 40px 16px;
-
-      .empty-card {
-        box-shadow: none;
-        background: var(--sj-surface-elevated);
-        border-radius: 16px;
-      }
-    }
-
-    .empty-content {
-      text-align: center;
-      padding: 32px 16px;
-    }
-
-    .empty-icon {
-      font-size: 48px;
-      color: var(--sj-text-tertiary);
-      margin-bottom: 16px;
-      display: block;
-    }
-
-    .empty-content h3 {
-      margin: 0 0 8px 0;
-      font-size: 18px;
-      font-weight: 600;
-      color: var(--sj-text-primary);
-    }
-
-    .empty-content p {
-      margin: 0;
-      font-size: 14px;
-      color: var(--sj-text-secondary);
-    }
-
     .jobs-list {
       --padding-start: 0;
       --padding-end: 0;
@@ -201,8 +161,5 @@ export class JobsListComponent {
   @Output() loadMore = new EventEmitter<void>();
 
   jobItemHeight = 320; // Approximate height of a job card in pixels
-
-  constructor() {
-    addIcons({ documentTextOutline });
-  }
+}
 }

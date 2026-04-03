@@ -4,11 +4,12 @@ import { IonIcon } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { searchOutline, closeOutline, locationOutline } from 'ionicons/icons';
 import { JobService } from '../../../../core/services/job.service';
+import { LocationPickerModalComponent } from '../location-picker-modal/location-picker-modal.component';
 
 @Component({
   selector: 'app-search-bar',
   standalone: true,
-  imports: [CommonModule, IonIcon],
+  imports: [CommonModule, IonIcon, LocationPickerModalComponent],
   template: `
     <div class="search-container">
       <!-- Search Input -->
@@ -40,66 +41,18 @@ import { JobService } from '../../../../core/services/job.service';
     </div>
 
     <!-- Location Modal -->
-    <div *ngIf="isLocationModalOpen" class="location-modal" (click)="closeLocationModal()">
-      <div class="location-modal-content" (click)="$event.stopPropagation()">
-        <h3>Seleccionar ubicación</h3>
-        <button
-          class="location-item"
-          (click)="selectLocation('')"
-          [class.selected]="location === ''"
-        >
-          🌍 Todo el mundo
-        </button>
-        <button
-          class="location-item"
-          (click)="selectLocation('Spain')"
-          [class.selected]="location === 'Spain'"
-        >
-          🇪🇸 España
-        </button>
-        <button
-          class="location-item"
-          (click)="selectLocation('United States')"
-          [class.selected]="location === 'United States'"
-        >
-          🇺🇸 Estados Unidos
-        </button>
-        <button
-          class="location-item"
-          (click)="selectLocation('United Kingdom')"
-          [class.selected]="location === 'United Kingdom'"
-        >
-          🇬🇧 Reino Unido
-        </button>
-        <button
-          class="location-item"
-          (click)="selectLocation('Germany')"
-          [class.selected]="location === 'Germany'"
-        >
-          🇩🇪 Alemania
-        </button>
-        <button
-          class="location-item"
-          (click)="selectLocation('France')"
-          [class.selected]="location === 'France'"
-        >
-          🇫🇷 Francia
-        </button>
-        <button
-          class="location-item"
-          (click)="selectLocation('Remote')"
-          [class.selected]="location === 'Remote'"
-        >
-          🌐 Remoto
-        </button>
-      </div>
-    </div>
+    <app-location-picker-modal
+      *ngIf="isLocationModalOpen"
+      [selectedLocation]="location"
+      (locationSelected)="selectLocation($event)"
+      (closed)="closeLocationModal()"
+    ></app-location-picker-modal>
   `,
   styles: `
     .search-container {
-      padding: 16px;
+      padding: 20px;
       background: var(--sj-surface);
-      gap: 12px;
+      gap: 16px;
       display: flex;
       flex-direction: column;
     }
@@ -107,12 +60,19 @@ import { JobService } from '../../../../core/services/job.service';
     .search-bar {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 12px 16px;
+      gap: 12px;
+      padding: 14px 18px;
       background: white;
-      border-radius: 12px;
-      border: 1px solid var(--sj-border);
+      border-radius: 14px;
+      border: 1.5px solid var(--sj-border);
       position: relative;
+      transition: all 0.2s ease;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+      &:focus-within {
+        border-color: var(--sj-primary);
+        box-shadow: 0 1px 8px rgba(5, 150, 105, 0.12);
+      }
     }
 
     .search-icon {
@@ -128,6 +88,8 @@ import { JobService } from '../../../../core/services/job.service';
       font-size: 16px;
       color: var(--sj-text-primary);
       background: transparent;
+      font-weight: 400;
+      letter-spacing: 0.3px;
 
       &::placeholder {
         color: var(--sj-text-tertiary);
@@ -137,83 +99,57 @@ import { JobService } from '../../../../core/services/job.service';
     .clear-btn {
       background: none;
       border: none;
-      padding: 0;
+      padding: 6px;
       cursor: pointer;
       display: flex;
       align-items: center;
+      justify-content: center;
       color: var(--sj-text-tertiary);
       font-size: 20px;
       flex-shrink: 0;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: var(--sj-surface-elevated);
+        color: var(--sj-text-secondary);
+      }
+
+      &:active {
+        transform: scale(0.95);
+      }
     }
 
     .location-selector {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 10px 16px;
+      gap: 10px;
+      padding: 12px 18px;
       background: white;
-      border-radius: 8px;
+      border-radius: 14px;
       cursor: pointer;
-      border: 1px solid var(--sj-border);
-      font-size: 14px;
+      border: 1.5px solid var(--sj-border);
+      font-size: 15px;
       color: var(--sj-text-primary);
+      font-weight: 500;
+      transition: all 0.2s ease;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+      &:hover {
+        border-color: var(--sj-primary);
+        box-shadow: 0 1px 8px rgba(5, 150, 105, 0.12);
+        background: linear-gradient(135deg, rgba(5, 150, 105, 0.02) 0%, rgba(5, 150, 105, 0.01) 100%);
+      }
+
+      &:active {
+        transform: scale(0.98);
+      }
     }
 
     .location-selector ion-icon {
       font-size: 18px;
       color: var(--sj-primary);
-    }
-
-    .location-modal {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.5);
-      display: flex;
-      align-items: flex-end;
-      z-index: 1000;
-    }
-
-    .location-modal-content {
-      width: 100%;
-      background: white;
-      border-radius: 16px 16px 0 0;
-      padding: 24px 16px;
-      max-height: 70vh;
-      overflow-y: auto;
-
-      h3 {
-        margin: 0 0 16px 0;
-        font-size: 18px;
-        font-weight: 600;
-      }
-    }
-
-    .location-item {
-      display: block;
-      width: 100%;
-      padding: 16px;
-      border: none;
-      background: transparent;
-      cursor: pointer;
-      text-align: left;
-      font-size: 16px;
-      color: var(--sj-text-primary);
-      border-bottom: 1px solid var(--sj-border);
-      transition: background 0.2s;
-
-      &:last-child {
-        border-bottom: none;
-      }
-
-      &:hover {
-        background: var(--sj-surface-elevated);
-      }
-
-      &.selected {
-        background: var(--sj-primary-soft);
-        color: var(--sj-primary);
-        font-weight: 600;
-      }
+      flex-shrink: 0;
     }
   `
 })

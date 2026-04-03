@@ -223,40 +223,49 @@ import { MatchScoreRingComponent } from '../match-score-ring/match-score-ring';
     .job-card {
       width: 100%;
       margin: 0;
-      border-radius: 20px;
-      background: var(--sj-surface);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 
-                  0 4px 16px rgba(0, 0, 0, 0.02);
-      border: 1px solid var(--sj-border-light);
+      border-radius: 16px;
+      background: white;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08),
+                  0 2px 6px rgba(0, 0, 0, 0.04);
+      border: 1px solid #e5e7eb;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       overflow: hidden;
     }
-    
+
+    .job-card:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12),
+                  0 8px 24px rgba(0, 0, 0, 0.06);
+      border-color: #d1d5db;
+      transform: translateY(-2px);
+    }
+
     .job-card:active {
       transform: scale(0.98);
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
     }
-    
+
     .job-card.saved {
       border-color: var(--sj-primary);
+      background: linear-gradient(135deg, rgba(5, 150, 105, 0.01) 0%, rgba(5, 150, 105, 0.005) 100%);
       box-shadow: 0 0 0 2px var(--sj-primary-soft),
-                  0 4px 16px rgba(5, 150, 105, 0.1);
+                  0 4px 16px rgba(5, 150, 105, 0.12);
     }
-    
+
     .job-card.applied {
-      opacity: 0.85;
+      opacity: 0.9;
     }
     
     /* Card Content */
     .job-card-content {
       padding: 20px;
     }
-    
+
     /* Header */
     .job-header {
       display: flex;
       gap: 16px;
       margin-bottom: 16px;
+      align-items: flex-start;
     }
     
     /* Company Logo */
@@ -324,39 +333,46 @@ import { MatchScoreRingComponent } from '../match-score-ring/match-score-ring';
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      padding: 4px 10px;
-      border-radius: 20px;
+      padding: 5px 12px;
+      border-radius: 6px;
       font-size: 11px;
       font-weight: 600;
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
     }
-    
+
     .badge ion-icon {
       font-size: 12px;
     }
-    
+
     .source-badge {
       background: #eff6ff;
       color: #1e40af;
+      border-color: #dbeafe;
     }
-    
+
     .source-badge.source-linkedin {
       background: #dbeafe;
       color: #1d4ed8;
+      border-color: #bfdbfe;
     }
-    
+
     .source-badge.source-remotive {
       background: #f0fdf4;
       color: #15803d;
+      border-color: #dcfce7;
     }
-    
+
     .remote-badge {
       background: #f0f9ff;
       color: #0369a1;
+      border-color: #e0f2fe;
     }
-    
+
     .applied-badge {
-      background: var(--sj-success-soft);
+      background: #f0fdf4;
       color: #065f46;
+      border-color: #dcfce7;
     }
     
     /* Match Container */
@@ -438,52 +454,70 @@ import { MatchScoreRingComponent } from '../match-score-ring/match-score-ring';
     /* Action Bar */
     .action-bar {
       display: flex;
-      gap: 8px;
+      gap: 10px;
+      margin-top: 4px;
     }
-    
+
     .action-btn {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
-      padding: 10px 16px;
-      border-radius: 12px;
-      font-size: 13px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 12px;
       font-weight: 600;
-      border: none;
+      border: 1px solid #e5e7eb;
       cursor: pointer;
       transition: all 0.2s ease;
       text-decoration: none;
       flex: 1;
+      background: white;
     }
-    
+
+    .action-btn:hover {
+      border-color: #d1d5db;
+      background: #f9fafb;
+    }
+
     .action-btn:active {
       transform: scale(0.95);
     }
-    
+
     .save-btn {
-      background: var(--sj-surface-elevated);
+      background: white;
       color: var(--sj-text-secondary);
+      border: 1px solid #e5e7eb;
     }
-    
+
     .save-btn.active {
       background: var(--sj-primary-soft);
       color: var(--sj-primary);
+      border-color: var(--sj-primary-light);
     }
-    
+
+    .save-btn.active:hover {
+      background: var(--sj-primary-soft);
+    }
+
     .share-btn {
-      background: var(--sj-surface-elevated);
+      background: white;
       color: var(--sj-text-secondary);
+      border: 1px solid #e5e7eb;
     }
-    
+
     .apply-btn {
       background: var(--sj-primary);
       color: white;
       flex: 1.5;
+      border: none;
+      font-weight: 700;
+      letter-spacing: 0.3px;
     }
-    
+
     .apply-btn:hover {
       background: var(--sj-primary-dark);
+      box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
     }
     
     /* Swipe Actions */
