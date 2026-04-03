@@ -85,9 +85,6 @@ import { EmptyStateComponent } from '../dashboard/components/empty-state/empty-s
 })
 export class SavedPage {
   readonly jobService = inject(JobService);
-  constructor() {
-    addIcons({ 'bookmark-outline': bookmarkOutline });
-  }
 
   onToggleSave(jobId: string): void {
     this.jobService.toggleSaved(jobId);

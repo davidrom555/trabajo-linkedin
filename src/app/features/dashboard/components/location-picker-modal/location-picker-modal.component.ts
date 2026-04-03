@@ -1,6 +1,6 @@
 import { Component, Output, EventEmitter, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { IonIcon, IonSearchbar } from '@ionic/angular/standalone';
+import { IonIcon } from '@ionic/angular/standalone';
 import { FormsModule } from '@angular/forms';
 import { addIcons } from 'ionicons';
 import { closeOutline, searchOutline } from 'ionicons/icons';
@@ -15,7 +15,7 @@ interface LocationOption {
 @Component({
   selector: 'app-location-picker-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule, IonIcon, IonSearchbar],
+  imports: [CommonModule, FormsModule, IonIcon],
   template: `
     <div class="location-modal-backdrop" (click)="close()">
       <div class="location-modal" (click)="$event.stopPropagation()">

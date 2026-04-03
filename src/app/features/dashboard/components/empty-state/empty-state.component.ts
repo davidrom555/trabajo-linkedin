@@ -1,6 +1,6 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { IonIcon, IonCard, IonCardContent } from '@ionic/angular/standalone';
+import { IonIcon } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
   documentTextOutline,
@@ -11,7 +11,7 @@ import {
 @Component({
   selector: 'app-empty-state',
   standalone: true,
-  imports: [CommonModule, IonIcon, IonCard, IonCardContent],
+  imports: [CommonModule, IonIcon],
   template: `
     <div class="empty-state-container">
       <div class="empty-state-card">

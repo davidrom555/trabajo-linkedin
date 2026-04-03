@@ -76,9 +76,6 @@ import { LoadingStateComponent } from '../loading-state/loading-state.component'
       display: flex;
       flex-direction: column;
       gap: 8px;
-    }
-
-    .jobs-list {
       --padding-start: 0;
       --padding-end: 0;
     }
@@ -138,5 +135,4 @@ export class JobsListComponent {
   @Output() loadMore = new EventEmitter<void>();
 
   jobItemHeight = 320; // Approximate height of a job card in pixels
-}
 }
