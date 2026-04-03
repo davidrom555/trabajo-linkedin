@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npm ls:*)",
+      "Bash(npx ng:*)",
+      "Bash(lsof -ti:4201)",
+      "Bash(xargs kill:*)",
+      "Bash(lsof -ti:3333)",
+      "Bash(npx concurrently:*)",
+      "Bash(curl -s http://localhost:3333/api/health)",
+      "Bash(curl -s \"http://localhost:4201/api/jobs/search?q=developer&limit=2\")",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s http://localhost:4201)",
+      "Bash(curl -s \"http://localhost:3333/api/jobs/search?q=angular+developer&location=Spain&limit=3\")"
+    ]
+  }
+}

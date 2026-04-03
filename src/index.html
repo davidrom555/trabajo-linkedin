@@ -1,13 +1,63 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>TrabajoLinkedin</title>
+  <title>SmartJob Agent</title>
   <base href="/">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <!-- Viewport optimizado para móviles -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
+  
+  <!-- Tema y colores -->
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#059669" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
+  
+  <!-- PWA -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SmartJob">
+  
+  <!-- Iconos -->
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="apple-touch-icon" href="assets/icon/apple-touch-icon.png">
+  
+  <!-- Fonts - Inter es excelente para móviles -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Splash screen para iOS -->
+  <link rel="apple-touch-startup-image" href="assets/splash/launch-640x1136.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)">
+  <link rel="apple-touch-startup-image" href="assets/splash/launch-750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)">
+  <link rel="apple-touch-startup-image" href="assets/splash/launch-1242x2208.png" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)">
+  <link rel="apple-touch-startup-image" href="assets/splash/launch-1125x2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)">
+  
+  <!-- Meta descripción para SEO -->
+  <meta name="description" content="SmartJob Agent - Encuentra tu trabajo ideal con IA. Búsqueda inteligente de empleos en LinkedIn y otras fuentes.">
+  <meta name="keywords" content="empleo, trabajo, linkedin, jobs, desarrollador, programador">
+  
+  <!-- Manifest para PWA -->
+  <link rel="manifest" href="manifest.json">
 </head>
 <body>
   <app-root></app-root>
+  
+  <!-- Script para prevenir zoom en inputs en iOS -->
+  <script>
+    // Prevenir zoom en inputs en iOS
+    document.addEventListener('touchstart', function() {}, {passive: true});
+    
+    // Prevenir double-tap zoom
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', function(event) {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) {
+        event.preventDefault();
+      }
+      lastTouchEnd = now;
+    }, {passive: false});
+  </script>
 </body>
 </html>

@@ -1,1 +1,168 @@
-/* You can add global styles to this file, and also import other style files */
+/* ── Ionic Core ─────────────────────────────────────────── */
+@import "@ionic/angular/css/core.css";
+@import "@ionic/angular/css/normalize.css";
+@import "@ionic/angular/css/structure.css";
+@import "@ionic/angular/css/typography.css";
+@import "@ionic/angular/css/display.css";
+@import "@ionic/angular/css/padding.css";
+@import "@ionic/angular/css/float-elements.css";
+@import "@ionic/angular/css/text-alignment.css";
+@import "@ionic/angular/css/text-transformation.css";
+@import "@ionic/angular/css/flex-utils.css";
+
+/* ── SmartJob Agent – Premium B2B Palette ───────────────── */
+:root {
+  /* Background & Surface */
+  --ion-background-color: #f9fafb;
+  --ion-background-color-rgb: 249, 250, 251;
+  --sj-surface: #ffffff;
+  --sj-surface-elevated: #ffffff;
+  --sj-border: #e5e7eb;
+
+  /* Text */
+  --ion-text-color: #1f2937;
+  --ion-text-color-rgb: 31, 41, 55;
+  --sj-text-secondary: #6b7280;
+  --sj-text-tertiary: #9ca3af;
+
+  /* Accent – Emerald */
+  --ion-color-primary: #059669;
+  --ion-color-primary-rgb: 5, 150, 105;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #047857;
+  --ion-color-primary-tint: #10b981;
+  --sj-emerald: #059669;
+  --sj-emerald-light: #d1fae5;
+  --sj-emerald-dark: #047857;
+
+  /* Match Score Gradient Stops */
+  --sj-match-high: #059669;
+  --sj-match-mid: #f59e0b;
+  --sj-match-low: #ef4444;
+
+  /* Toolbar */
+  --ion-toolbar-background: #ffffff;
+  --ion-toolbar-color: #1f2937;
+  --ion-tab-bar-background: #ffffff;
+  --ion-tab-bar-color: #9ca3af;
+  --ion-tab-bar-color-selected: #059669;
+
+  /* Card */
+  --ion-card-background: #ffffff;
+  --ion-item-background: #ffffff;
+
+  /* Fonts */
+  --ion-font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, sans-serif;
+}
+
+/* ── Dark mode override (future-ready) ──────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ion-background-color: #111827;
+    --ion-background-color-rgb: 17, 24, 39;
+    --sj-surface: #1f2937;
+    --sj-surface-elevated: #374151;
+    --sj-border: #374151;
+    --ion-text-color: #f9fafb;
+    --ion-text-color-rgb: 249, 250, 251;
+    --sj-text-secondary: #d1d5db;
+    --sj-text-tertiary: #9ca3af;
+    --ion-toolbar-background: #1f2937;
+    --ion-toolbar-color: #f9fafb;
+    --ion-tab-bar-background: #1f2937;
+    --ion-card-background: #1f2937;
+    --ion-item-background: #1f2937;
+  }
+}
+
+/* ── Global Utility Overrides ───────────────────────────── */
+ion-content {
+  --background: var(--ion-background-color);
+}
+
+ion-card {
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--sj-border);
+  margin: 12px 16px;
+}
+
+ion-searchbar {
+  --border-radius: 10px;
+  --background: var(--sj-surface);
+  --box-shadow: none;
+  border: 1px solid var(--sj-border);
+  border-radius: 10px;
+  padding: 0 16px;
+}
+
+/* Skeleton shimmer */
+ion-skeleton-text {
+  --border-radius: 8px;
+}
+
+/* Tab bar subtle top border */
+ion-tab-bar {
+  border-top: 1px solid var(--sj-border);
+}
+
+/* ── Theme-aware utility classes ────────────────────────── */
+/* These override hardcoded Tailwind colors to respect dark mode */
+.sj-surface {
+  background-color: var(--sj-surface) !important;
+}
+
+.sj-surface-bg {
+  background-color: var(--ion-background-color) !important;
+}
+
+.sj-text-primary {
+  color: var(--ion-text-color) !important;
+}
+
+.sj-text-secondary {
+  color: var(--sj-text-secondary) !important;
+}
+
+.sj-text-tertiary {
+  color: var(--sj-text-tertiary) !important;
+}
+
+.sj-border {
+  border-color: var(--sj-border) !important;
+}
+
+.sj-card {
+  background-color: var(--sj-surface);
+  border: 1px solid var(--sj-border);
+  border-radius: 12px;
+}
+
+/* Logo initials circle */
+.sj-logo-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+@media (prefers-color-scheme: light) {
+  .sj-logo-circle {
+    background: #f3f4f6;
+    color: #6b7280;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .sj-logo-circle {
+    background: #374151;
+    color: #d1d5db;
+  }
+}

@@ -1,0 +1,319 @@
+/* ═══════════════════════════════════════════════════════════
+   SMARTJOB AGENT - Design System
+   Sistema de diseño profesional mobile-first
+   ═══════════════════════════════════════════════════════════ */
+
+/* Importaciones base */
+@import "tailwindcss" prefix(tw-);
+
+/* ═══════════════════════════════════════════════════════════
+   VARIABLES CSS - Design Tokens
+   ═══════════════════════════════════════════════════════════ */
+
+:root {
+  /* Colores primarios - Esmeralda profesional */
+  --sj-primary: #059669;
+  --sj-primary-light: #10b981;
+  --sj-primary-dark: #047857;
+  --sj-primary-soft: #d1fae5;
+  
+  /* Colores de superficie - MODO CLARO (default) */
+  --sj-background: #f8fafc;
+  --sj-surface: #ffffff;
+  --sj-surface-elevated: #f1f5f9;
+  --sj-surface-hover: #e2e8f0;
+  
+  /* Colores de texto */
+  --sj-text-primary: #0f172a;
+  --sj-text-secondary: #475569;
+  --sj-text-tertiary: #64748b;
+  --sj-text-inverse: #ffffff;
+  
+  /* Colores semánticos */
+  --sj-success: #10b981;
+  --sj-success-soft: #d1fae5;
+  --sj-warning: #f59e0b;
+  --sj-warning-soft: #fef3c7;
+  --sj-danger: #ef4444;
+  --sj-danger-soft: #fee2e2;
+  --sj-info: #3b82f6;
+  --sj-info-soft: #dbeafe;
+  
+  /* Bordes y sombras */
+  --sj-border: #e2e8f0;
+  --sj-border-light: #f1f5f9;
+  --sj-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --sj-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --sj-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --sj-shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  
+  /* Espaciado */
+  --sj-spacing-xs: 4px;
+  --sj-spacing-sm: 8px;
+  --sj-spacing-md: 16px;
+  --sj-spacing-lg: 24px;
+  --sj-spacing-xl: 32px;
+  
+  /* Bordes redondeados */
+  --sj-radius-sm: 8px;
+  --sj-radius-md: 12px;
+  --sj-radius-lg: 16px;
+  --sj-radius-xl: 24px;
+  --sj-radius-full: 9999px;
+  
+  /* Transiciones */
+  --sj-transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --sj-transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --sj-transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* Tipografía */
+  --sj-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --sj-font-mono: 'SF Mono', Monaco, monospace;
+}
+
+/* FORZAR MODO CLARO SIEMPRE - Evitar problemas con modo oscuro del sistema */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Mantener colores claros incluso en modo oscuro del sistema */
+    --sj-background: #f8fafc;
+    --sj-surface: #ffffff;
+    --sj-surface-elevated: #f1f5f9;
+    --sj-surface-hover: #e2e8f0;
+    
+    --sj-text-primary: #0f172a;
+    --sj-text-secondary: #475569;
+    --sj-text-tertiary: #64748b;
+    
+    --sj-border: #e2e8f0;
+    --sj-border-light: #f1f5f9;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ESTILOS BASE
+   ═══════════════════════════════════════════════════════════ */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--sj-font-sans);
+  background-color: var(--sj-background);
+  color: var(--sj-text-primary);
+  overflow-x: hidden;
+}
+
+/* Safe areas para móviles */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   INPUTS - Asegurar texto visible
+   ═══════════════════════════════════════════════════════════ */
+
+input, textarea, select {
+  color: var(--sj-text-primary) !important;
+  background-color: white !important;
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--sj-text-tertiary) !important;
+}
+
+/* Input en header verde - FORZAR texto oscuro */
+.header-gradient input,
+.header-gradient input::placeholder {
+  color: var(--sj-text-primary) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ANIMACIONES
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   COMPONENTES REUTILIZABLES
+   ═══════════════════════════════════════════════════════════ */
+
+/* Cards */
+.sj-card {
+  background: var(--sj-surface);
+  border-radius: var(--sj-radius-lg);
+  box-shadow: var(--sj-shadow);
+  transition: all var(--sj-transition-fast);
+}
+
+/* Botones */
+.sj-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sj-spacing-sm);
+  padding: 12px 24px;
+  border-radius: var(--sj-radius-md);
+  font-weight: 600;
+  font-size: 14px;
+  transition: all var(--sj-transition-fast);
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sj-btn-primary {
+  background: var(--sj-primary);
+  color: white !important;
+  box-shadow: 0 4px 14px 0 rgba(5, 150, 105, 0.39);
+}
+
+/* Chips/Badges */
+.sj-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: var(--sj-radius-full);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   IONIC OVERRIDES - Mejoras visuales
+   ═══════════════════════════════════════════════════════════ */
+
+ion-content {
+  --background: var(--sj-background);
+}
+
+ion-toolbar {
+  --background: transparent;
+  --border-width: 0;
+}
+
+ion-tab-bar {
+  --background: var(--sj-surface);
+  --border: 1px solid var(--sj-border);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
+  padding-bottom: max(env(safe-area-inset-bottom), 8px);
+  padding-top: 8px;
+  height: auto;
+  min-height: 64px;
+}
+
+ion-tab-button {
+  --color: var(--sj-text-tertiary);
+  --color-selected: var(--sj-primary);
+  --ripple-color: var(--sj-primary-soft);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* Modal styling */
+ion-modal {
+  --border-radius: 20px 20px 0 0;
+  --backdrop-opacity: 0.5;
+}
+
+/* Action sheet */
+ion-action-sheet {
+  --background: var(--sj-surface);
+  --button-color: var(--sj-text-primary);
+  --button-color-selected: var(--sj-primary);
+  --cancel-button-color: var(--sj-text-secondary);
+}
+
+/* FORZAR texto oscuro en todos los inputs de Ionic */
+ion-input, ion-searchbar, ion-textarea, ion-select {
+  --color: var(--sj-text-primary) !important;
+  --placeholder-color: var(--sj-text-tertiary) !important;
+}
+
+ion-searchbar input {
+  color: var(--sj-text-primary) !important;
+}
+
+ion-searchbar .searchbar-input {
+  color: var(--sj-text-primary) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   UTILIDADES
+   ═══════════════════════════════════════════════════════════ */
+
+/* Glass effect */
+.glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Touch feedback */
+.touch-feedback {
+  transition: transform var(--sj-transition-fast);
+}
+
+.touch-feedback:active {
+  transform: scale(0.96);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--sj-text-tertiary);
+  border-radius: var(--sj-radius-full);
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
