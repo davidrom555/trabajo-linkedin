@@ -204,9 +204,18 @@ export class LinkedInApiService {
   // ─── MÉTODOS PRIVADOS ─────────────────────────────────────
 
   private normalizeJob(job: any): Job {
+    // Ensure postedAt is a valid Date
+    let postedAt: Date;
+    if (job.postedAt) {
+      const parsed = new Date(job.postedAt);
+      postedAt = isNaN(parsed.getTime()) ? new Date() : parsed;
+    } else {
+      postedAt = new Date();
+    }
+
     return {
       ...job,
-      postedAt: new Date(job.postedAt),
+      postedAt,
       linkedinUrl: job.linkedinUrl || job.sourceUrl || job.url || '',
       source: job.source || 'unknown',
       matchScore: job.matchScore || 0,
@@ -279,6 +288,15 @@ export class LinkedInApiService {
   }
 
   private normalizeRemotiveJob(raw: RemotiveJob): Job {
+    // Ensure postedAt is a valid Date
+    let postedAt: Date;
+    if (raw.publication_date) {
+      const parsed = new Date(raw.publication_date);
+      postedAt = isNaN(parsed.getTime()) ? new Date() : parsed;
+    } else {
+      postedAt = new Date();
+    }
+
     return {
       id: `remotive-${raw.id}`,
       title: raw.title || '',
@@ -289,7 +307,7 @@ export class LinkedInApiService {
       salary: this.parseSalary(raw.salary || ''),
       description: this.stripHtml(raw.description || ''),
       requirements: this.extractRequirements(raw.description || '', raw.tags || []),
-      postedAt: new Date(raw.publication_date || Date.now()),
+      postedAt,
       linkedinUrl: raw.url || '',
       source: 'remotive',
       matchScore: 0,

@@ -525,7 +525,6 @@ import { MatchScoreRingComponent } from '../match-score-ring/match-score-ring';
 })
 export class JobCardComponent {
   readonly job = input.required<Job>();
-  readonly userSkills = input<string[]>([]);
   readonly save = output<string>();
   readonly dismiss = output<string>();
   readonly apply = output<string>();
@@ -593,9 +592,7 @@ export class JobCardComponent {
   });
 
   isMatchingSkill(skill: string): boolean {
-    return this.userSkills().some(
-      (s) => s.toLowerCase() === skill.toLowerCase()
-    );
+    return false;
   }
 
   getSourceIcon(): string {
@@ -605,6 +602,7 @@ export class JobCardComponent {
       arbeitnow: 'business-outline',
       jsearch: 'globe-outline',
       adzuna: 'search-outline',
+      remoteok: 'wifi-outline',
     };
     return icons[this.job().source ?? ''] ?? 'globe-outline';
   }

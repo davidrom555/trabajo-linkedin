@@ -1,7 +1,5 @@
 import { Injectable, inject, signal, computed, effect } from '@angular/core';
-import { Job, MatchBreakdown, TimeFilter } from '../models/job.model';
-import { UserProfile } from '../models/profile.model';
-import { ProfileService } from './profile.service';
+import { Job, TimeFilter } from '../models/job.model';
 import { LinkedInApiService } from './linkedin-api.service';
 
 interface JobFilters {
@@ -46,7 +44,6 @@ export const SUPPORTED_COUNTRIES = [
 
 @Injectable({ providedIn: 'root' })
 export class JobService {
-  private readonly profileService = inject(ProfileService);
   private readonly linkedInApi = inject(LinkedInApiService);
 
   // ── State Signals ──────────────────────────────────────
@@ -61,10 +58,11 @@ export class JobService {
   private readonly _error = signal<string | null>(null);
   private readonly _lastFetchTime = signal<Date | null>(null);
   private readonly _apiStatus = signal<ApiStatus | null>(null);
-  
-  // ── Loading Control ────────────────────────────────────
+
+  // ── Search State Management ────────────────────────────
+  private _currentSearchId = signal<string>('');
   private _loadJobsPromise: Promise<void> | null = null;
-  private _profileLoadTimeout: any = null;
+
 
   // ── Persisted State ────────────────────────────────────
   private readonly SAVED_JOBS_KEY = 'smartjob_saved_jobs';
@@ -84,18 +82,18 @@ export class JobService {
   readonly supportedCountries = SUPPORTED_COUNTRIES;
 
   constructor() {
-    // Cargar filtros guardados
+    // Cargar filtros guardados (excepto timeFilter, que siempre es 'all')
     this.loadSavedFilters();
-    
+
     // Verificar estado de APIs
     this.checkApiStatus();
     
     // Efecto para guardar filtros cuando cambien
     effect(() => {
       const filters: JobFilters = {
-        timeFilter: this._timeFilter(),
+        timeFilter: 'all', // NO guardar timeFilter - siempre es 'all'
         searchQuery: this._searchQuery(),
-        remoteOnly: this._remoteOnly(),
+        remoteOnly: false, // NO guardar remoteOnly - siempre es false
         minSalary: this._minSalary(),
         sources: this._selectedSources(),
         location: this._location(),
@@ -108,18 +106,9 @@ export class JobService {
     // Esto evita múltiples llamadas automáticas a la API
   }
 
-  /** All jobs with match scores calculated */
+  /** All jobs */
   readonly jobs = computed(() => {
-    const profile = this.profileService.profile();
-    const rawJobs = this._jobs();
-
-    if (!profile) return rawJobs;
-
-    return rawJobs.map((job) => {
-      const breakdown = this.calculateMatchBreakdown(job, profile);
-      const matchScore = this.calculateOverallScore(breakdown);
-      return { ...job, matchScore, matchBreakdown: breakdown };
-    });
+    return this._jobs();
   });
 
   /** Jobs filtered by all active filters */
@@ -148,21 +137,29 @@ export class JobService {
       .filter((job) => {
         // Filtro de tiempo - solo si NO es 'all' y la fecha es válida
         if (filter !== 'all') {
-          const postedDate = new Date(job.postedAt);
+          // Convertir a Date si es necesario
+          const postedDate = typeof job.postedAt === 'string'
+            ? new Date(job.postedAt)
+            : job.postedAt;
+
           // Verificar que la fecha sea válida
-          if (!isNaN(postedDate.getTime())) {
+          if (postedDate && !isNaN(postedDate.getTime())) {
             const age = now - postedDate.getTime();
             // Si el job es más viejo que el filtro, excluirlo
             if (age > cutoffMs[filter]) {
               timeFiltered++;
               return false;
             }
+          } else {
+            // Si la fecha es inválida pero el filtro es restrictivo, incluir el job
+            // para no perder resultados por fechas corrupta
+            console.warn('[JobService] Invalid date for job:', job.id, job.postedAt);
           }
         }
 
-        // Filtro de búsqueda
+        // Filtro de búsqueda - busca en título, empresa, ubicación, descripción y requisitos
         if (query && query.length > 0) {
-          const jobText = `${job.title} ${job.company} ${job.location}`.toLowerCase();
+          const jobText = `${job.title} ${job.company} ${job.location} ${job.description} ${job.requirements.join(' ')}`.toLowerCase();
           if (!jobText.includes(query)) {
             queryFiltered++;
             return false;
@@ -187,7 +184,17 @@ export class JobService {
         return true;
       })
       .sort((a, b) => b.matchScore - a.matchScore);
-    
+
+    console.log('[JobService] Filtered results:', {
+      total: jobs.length,
+      filtered: result.length,
+      timeFilter: filter,
+      query,
+      remoteOnly,
+      minSalary,
+      excluded: { timeFiltered, queryFiltered, remoteFiltered, salaryFiltered }
+    });
+
     return result;
   });
 
@@ -215,32 +222,39 @@ export class JobService {
   readonly availableSources = computed(() => {
     const status = this._apiStatus();
     return [
-      { id: 'all', name: 'Todas', icon: 'globe-outline', active: true },
-      { id: 'adzuna', name: 'Adzuna', icon: 'search-outline', active: status?.adzuna ?? true },
+      { id: 'all', name: 'LinkedIn', icon: 'logo-linkedin', active: status?.rapidapi ?? true },
       { id: 'linkedin', name: 'LinkedIn', icon: 'logo-linkedin', active: status?.rapidapi ?? true },
-      { id: 'jsearch', name: 'JSearch', icon: 'flash-outline', active: status?.rapidapi ?? true },
-      { id: 'remotive', name: 'Remotive', icon: 'wifi-outline', active: true },
-      { id: 'arbeitnow', name: 'Arbeitnow', icon: 'business-outline', active: true },
     ];
   });
 
   // ── Actions ────────────────────────────────────────────
 
   async loadJobs(forceRefresh = false): Promise<void> {
-    // Prevenir llamadas concurrentes - si ya hay una carga en progreso, esperarla
+    // Generar ID único para esta búsqueda
+    const searchId = `${Date.now()}-${Math.random()}`;
+    this._currentSearchId.set(searchId);
+
+    console.log('[JobService] NEW SEARCH:', {
+      searchId,
+      query: this._searchQuery(),
+      location: this._location(),
+      forceRefresh
+    });
+
+    // Limpiar datos anteriores INMEDIATAMENTE
+    this._jobs.set([]);
+    this._error.set(null);
+    this._isLoading.set(true);
+
+    // Prevenir llamadas concurrentes
     if (this._loadJobsPromise) {
-      console.log('[JobService] Load already in progress, waiting...');
+      console.log('[JobService] Load already in progress, cancelling old search...');
       return this._loadJobsPromise;
     }
 
-    // Log para debugging - quién está llamando
-    const stack = new Error().stack;
-    console.log('[JobService] loadJobs called with forceRefresh:', forceRefresh);
-    console.trace('[JobService] Call stack:');
-
     // Crear la promesa de carga
-    this._loadJobsPromise = this._doLoadJobs(forceRefresh);
-    
+    this._loadJobsPromise = this._doLoadJobs(searchId, forceRefresh);
+
     try {
       await this._loadJobsPromise;
     } finally {
@@ -249,32 +263,35 @@ export class JobService {
     }
   }
 
-  private async _doLoadJobs(forceRefresh = false): Promise<void> {
-    const profile = this.profileService.profile();
-    this._isLoading.set(true);
-    this._error.set(null);
-
+  private async _doLoadJobs(searchId: string, forceRefresh = false): Promise<void> {
     try {
-      // Usar la ubicación seleccionada o la del perfil
-      const location = this._location() || profile?.location || '';
-      
-      // Determinar keywords: usar búsqueda manual o skills del perfil
-      const keywords = this._searchQuery() 
+      // Usar la ubicación seleccionada
+      const location = this._location() || '';
+
+      // Determinar keywords: usar búsqueda manual o default
+      const keywords = this._searchQuery()
         ? [this._searchQuery()]
-        : profile?.skills ?? ['developer'];
-      
+        : ['developer'];
+
       // Determinar fuentes a usar
       const sources = this._selectedSources();
       const sourceParam = sources.includes('all') ? undefined : sources;
 
-      console.log('[JobService] Fetching jobs with keywords:', keywords);
+      console.log('[JobService] Fetching jobs:', { searchId, keywords, location });
 
+      // IMPORTANTE: Forzar sin caché en búsquedas nuevas
       const jobs = await this.linkedInApi.fetchJobs(
         keywords,
         location,
         this._timeFilter(),
-        { sources: sourceParam, useCache: !forceRefresh }
+        { sources: sourceParam, useCache: false } // ← SIEMPRE sin caché para búsquedas nuevas
       );
+
+      // Validar que esta búsqueda es la actual
+      if (searchId !== this._currentSearchId()) {
+        console.log('[JobService] Ignoring old search results:', { searchId, currentSearchId: this._currentSearchId() });
+        return; // Ignorar si es una búsqueda antigua
+      }
 
       // Fusionar con estado de guardados
       const savedIds = this.getSavedJobIds();
@@ -283,79 +300,31 @@ export class JobService {
         saved: savedIds.has(job.id)
       }));
 
+      console.log('[JobService] Setting jobs:', { searchId, count: jobsWithSavedState.length });
       this._jobs.set(jobsWithSavedState);
       this._lastFetchTime.set(new Date());
     } catch (e: any) {
-      console.error('Error loading jobs:', e);
-      this._error.set(e.message || 'Error al cargar ofertas. Intenta de nuevo.');
+      // Validar que aún es la búsqueda actual
+      if (searchId === this._currentSearchId()) {
+        console.error('Error loading jobs:', e);
+        this._error.set(e.message || 'Error al cargar ofertas. Intenta de nuevo.');
+      }
     } finally {
-      this._isLoading.set(false);
+      // Solo desactivar loading si es la búsqueda actual
+      if (searchId === this._currentSearchId()) {
+        this._isLoading.set(false);
+      }
     }
   }
 
   async searchWithLocation(query: string, location: string): Promise<void> {
+    console.log('[JobService] searchWithLocation:', { query, location });
     this._searchQuery.set(query);
     this._location.set(location);
-    await this.loadJobs(true);
+    await this.loadJobs(true); // forceRefresh = true para ignorar caché
   }
 
-  async loadJobsWithSkills(skills: string[], forceRefresh = false): Promise<void> {
-    // Prevenir llamadas concurrentes
-    if (this._loadJobsPromise) {
-      console.log('[JobService] Load already in progress, waiting...');
-      return this._loadJobsPromise;
-    }
 
-    this._loadJobsPromise = this._doLoadJobsWithSkills(skills, forceRefresh);
-    
-    try {
-      await this._loadJobsPromise;
-    } finally {
-      this._loadJobsPromise = null;
-    }
-  }
-
-  private async _doLoadJobsWithSkills(skills: string[], forceRefresh = false): Promise<void> {
-    const profile = this.profileService.profile();
-    this._isLoading.set(true);
-    this._error.set(null);
-
-    try {
-      // Usar la ubicación seleccionada o la del perfil
-      const location = this._location() || profile?.location || '';
-      
-      // Usar solo las skills proporcionadas
-      const keywords = skills.length > 0 ? skills : ['developer'];
-      
-      // Determinar fuentes a usar
-      const sources = this._selectedSources();
-      const sourceParam = sources.includes('all') ? undefined : sources;
-
-      console.log('[JobService] Fetching jobs with selected skills:', keywords);
-
-      const jobs = await this.linkedInApi.fetchJobs(
-        keywords,
-        location,
-        this._timeFilter(),
-        { sources: sourceParam, useCache: !forceRefresh }
-      );
-
-      // Fusionar con estado de guardados
-      const savedIds = this.getSavedJobIds();
-      const jobsWithSavedState = jobs.map(job => ({
-        ...job,
-        saved: savedIds.has(job.id)
-      }));
-
-      this._jobs.set(jobsWithSavedState);
-      this._lastFetchTime.set(new Date());
-    } catch (e: any) {
-      console.error('Error loading jobs:', e);
-      this._error.set(e.message || 'Error al cargar ofertas. Intenta de nuevo.');
-    } finally {
-      this._isLoading.set(false);
-    }
-  }
 
   async checkApiStatus(): Promise<void> {
     try {
@@ -460,10 +429,11 @@ export class JobService {
       const saved = localStorage.getItem(this.FILTERS_KEY);
       if (saved) {
         const filters: JobFilters = JSON.parse(saved);
-        this._timeFilter.set(filters.timeFilter || '7d');
+        // NO restaurar timeFilter - siempre comenzar con 'all' (sin filtro de fecha)
+        // NO restaurar remoteOnly - siempre comenzar con false (mostrar todos)
         this._searchQuery.set(filters.searchQuery || '');
         this._location.set(filters.location || '');
-        this._remoteOnly.set(filters.remoteOnly || false);
+        // this._remoteOnly.set(filters.remoteOnly || false); ← ELIMINADO
         this._minSalary.set(filters.minSalary || null);
         this._selectedSources.set(filters.sources || ['all']);
       }
@@ -472,105 +442,5 @@ export class JobService {
     }
   }
 
-  // ── Matching Algorithm ─────────────────────────────────
 
-  private calculateMatchBreakdown(job: Job, profile: UserProfile): MatchBreakdown {
-    return {
-      skillsMatch: this.scoreSkills(job, profile),
-      experienceMatch: this.scoreExperience(job, profile),
-      locationMatch: this.scoreLocation(job, profile),
-      seniorityMatch: this.scoreSeniority(job, profile),
-    };
-  }
-
-  private calculateOverallScore(breakdown: MatchBreakdown): number {
-    const score =
-      breakdown.skillsMatch * 0.4 +
-      breakdown.experienceMatch * 0.25 +
-      breakdown.locationMatch * 0.15 +
-      breakdown.seniorityMatch * 0.2;
-
-    return Math.round(Math.min(100, Math.max(0, score)));
-  }
-
-  private scoreSkills(job: Job, profile: UserProfile): number {
-    if (job.requirements.length === 0 || profile.skills.length === 0) return 50;
-
-    const profileSkills = new Set(profile.skills.map((s) => s.toLowerCase()));
-    const matches = job.requirements.filter((r) =>
-      profileSkills.has(r.toLowerCase())
-    );
-
-    const coverage = matches.length / job.requirements.length;
-    return Math.round(coverage * 100);
-  }
-
-  private scoreExperience(job: Job, profile: UserProfile): number {
-    const totalYears = profile.experience.reduce((sum, exp) => {
-      const start = new Date(exp.startDate);
-      const end = exp.endDate ? new Date(exp.endDate) : new Date();
-      return sum + (end.getTime() - start.getTime()) / (365.25 * 24 * 3600000);
-    }, 0);
-
-    const title = job.title.toLowerCase();
-    let requiredYears = 3;
-    if (title.includes('senior')) requiredYears = 5;
-    if (title.includes('staff') || title.includes('lead')) requiredYears = 7;
-    if (title.includes('principal') || title.includes('manager'))
-      requiredYears = 10;
-
-    if (totalYears >= requiredYears) return 100;
-    if (totalYears >= requiredYears * 0.7) return 75;
-    if (totalYears >= requiredYears * 0.5) return 50;
-    return 30;
-  }
-
-  private scoreLocation(job: Job, profile: UserProfile): number {
-    if (job.remote === 'remote') return 100;
-
-    const jobLoc = job.location.toLowerCase();
-    const profLoc = profile.location.toLowerCase();
-
-    if (jobLoc === profLoc) return 100;
-
-    const jobCountry = jobLoc.split(',').pop()?.trim() ?? '';
-    const profCountry = profLoc.split(',').pop()?.trim() ?? '';
-
-    if (jobCountry && jobCountry === profCountry) return 80;
-    if (job.remote === 'hybrid') return 60;
-    return 40;
-  }
-
-  private scoreSeniority(job: Job, profile: UserProfile): number {
-    const seniorityLevels: Record<string, number> = {
-      junior: 1,
-      mid: 2,
-      senior: 3,
-      staff: 4,
-      lead: 4,
-      principal: 5,
-      manager: 5,
-      director: 6,
-    };
-
-    const extractLevel = (title: string): number => {
-      const lower = title.toLowerCase();
-      for (const [key, level] of Object.entries(seniorityLevels)) {
-        if (lower.includes(key)) return level;
-      }
-      return 2;
-    };
-
-    const jobLevel = extractLevel(job.title);
-    const profileLevel = Math.max(
-      ...profile.experience.map((e) => extractLevel(e.title)),
-      2
-    );
-
-    const diff = Math.abs(jobLevel - profileLevel);
-    if (diff === 0) return 100;
-    if (diff === 1) return 75;
-    if (diff === 2) return 45;
-    return 20;
-  }
 }

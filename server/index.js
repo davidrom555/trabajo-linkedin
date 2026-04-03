@@ -6,8 +6,6 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3333;
 const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || '';
-const ADZUNA_APP_ID = process.env.ADZUNA_APP_ID || '';
-const ADZUNA_APP_KEY = process.env.ADZUNA_APP_KEY || '';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 
 // ═══════════════════════════════════════════════════════════
@@ -25,21 +23,11 @@ app.use(express.json());
 // ── Validate API Keys on startup ──────────────────────────
 console.log('\n  🔑 Verificando configuración de APIs...\n');
 
-const hasAdzuna = ADZUNA_APP_ID && ADZUNA_APP_ID !== 'tu_app_id' && 
-                  ADZUNA_APP_KEY && ADZUNA_APP_KEY !== 'tu_app_key';
 const hasRapidApi = RAPIDAPI_KEY && RAPIDAPI_KEY !== 'tu_api_key_aqui';
 const hasGemini = GEMINI_API_KEY && GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY' && GEMINI_API_KEY !== 'tu_api_key_aqui';
 
-if (!hasAdzuna) {
-  console.warn('  ⚠️  ADZUNA_API: No configurada');
-  console.warn('     → Ve a https://developer.adzuna.com/');
-  console.warn('     → Crea cuenta gratuita (5,000 req/mes)');
-} else {
-  console.log('  ✓ ADZUNA_API: CONFIGURADA');
-}
-
 if (!hasRapidApi) {
-  console.warn('  ⚠️  RAPIDAPI_KEY: No configurada (opcional)');
+  console.warn('  ⚠️  RAPIDAPI_KEY: No configurada (fallback opcional)');
 } else {
   console.log('  ✓ RAPIDAPI_KEY: CONFIGURADA');
 }
@@ -183,84 +171,28 @@ function getCountryCode(location) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// ADZUNA API - Integración Principal
-// ═══════════════════════════════════════════════════════════
-
-async function searchAdzunaJobs(query, location = '', page = 1, resultsPerPage = 20) {
-  if (!hasAdzuna) {
-    throw new Error('Adzuna API no configurada');
-  }
-
-  const country = getCountryCode(location);
-  const where = location ? `&where=${encodeURIComponent(location)}` : '';
-  const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/${page}?` +
-    `app_id=${ADZUNA_APP_ID}&app_key=${ADZUNA_APP_KEY}` +
-    `&what=${encodeURIComponent(query)}${where}` +
-    `&results_per_page=${resultsPerPage}` +
-    `&content-type=application/json`;
-
-  console.log(`[Adzuna API] Searching: "${query}" in "${location || country.toUpperCase()}" (page ${page})`);
-
-  const response = await fetch(url, {
-    signal: AbortSignal.timeout(15000),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`[Adzuna API] Error ${response.status}:`, errorText);
-    throw new Error(`Adzuna API responded ${response.status}: ${errorText}`);
-  }
-
-  const data = await response.json();
-  const jobs = data.results || [];
-  
-  console.log(`[Adzuna API] ✓ ${jobs.length} jobs found`);
-  
-  return jobs.map(normalizeAdzunaJob);
-}
-
-function normalizeAdzunaJob(raw) {
-  const description = stripHtml(raw.description || '');
-  const companyName = raw.company?.display_name || 
-                      raw.company_name || 
-                      'Empresa no especificada';
-  
-  return {
-    id: `adzuna-${raw.id}`,
-    title: raw.title || 'Sin título',
-    company: companyName,
-    companyLogo: raw.company?.logo || raw.company_logo || null,
-    location: raw.location?.display_name || raw.location || 'Ubicación no especificada',
-    remote: detectRemoteType(raw.title || '', raw.location?.display_name || '', description),
-    salary: raw.salary_min ? {
-      min: Math.round(raw.salary_min),
-      max: Math.round(raw.salary_max || raw.salary_min),
-      currency: raw.salary_currency || 'EUR',
-    } : null,
-    description,
-    requirements: extractSkills(description),
-    postedAt: raw.created || raw.created_at || new Date().toISOString(),
-    linkedinUrl: raw.redirect_url || raw.url || '',
-    source: 'adzuna',
-    category: raw.category?.label || 'General',
-    contractType: raw.contract_type || 'unknown',
-    contractTime: raw.contract_time || 'unknown',
-    matchScore: 0,
-    matchBreakdown: { skillsMatch: 0, experienceMatch: 0, locationMatch: 0, seniorityMatch: 0 },
-    saved: false,
-    applied: false,
-  };
-}
-
-// ═══════════════════════════════════════════════════════════
-// RAPIDAPI - LinkedIn & JSearch (Fallback)
+// LINKEDIN JOBS - RapidAPI + Scraper directo
 // ═══════════════════════════════════════════════════════════
 
 async function searchLinkedInJobs(query, location, page = 1) {
-  if (!hasRapidApi) {
-    throw new Error('RapidAPI no configurada');
+  // 1. Intentar RapidAPI primero si está configurada
+  if (hasRapidApi) {
+    try {
+      const rapidJobs = await searchLinkedInRapidApi(query, location, page);
+      if (rapidJobs.length > 0) return rapidJobs;
+    } catch (err) {
+      if (!err.message?.includes('429')) {
+        throw err;
+      }
+      console.warn('[LinkedIn] RapidAPI 429, fallback a scraper directo...');
+    }
   }
 
+  // 2. Fallback: scraper directo de LinkedIn Jobs
+  return searchLinkedInScraper(query, location, page);
+}
+
+async function searchLinkedInRapidApi(query, location, page = 1) {
   const url = 'https://linkedin-jobs-search.p.rapidapi.com/';
   const body = {
     search_terms: query,
@@ -269,7 +201,7 @@ async function searchLinkedInJobs(query, location, page = 1) {
     fetch_full_text: 'yes',
   };
 
-  console.log(`[LinkedIn API] Searching: "${query}" in "${location || 'Spain'}" (page ${page})`);
+  console.log(`[LinkedIn RapidAPI] Searching: "${query}" in "${location || 'Spain'}" (page ${page})`);
 
   const response = await fetch(url, {
     method: 'POST',
@@ -284,15 +216,140 @@ async function searchLinkedInJobs(query, location, page = 1) {
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error(`[LinkedIn API] Error ${response.status}:`, errorText);
+    console.error(`[LinkedIn RapidAPI] Error ${response.status}:`, errorText);
     throw new Error(`LinkedIn API responded ${response.status}: ${errorText}`);
   }
 
   const data = await response.json();
-  console.log(`[LinkedIn API] Got ${Array.isArray(data) ? data.length : 0} results`);
+  console.log(`[LinkedIn RapidAPI] Got ${Array.isArray(data) ? data.length : 0} results`);
 
   const jobs = Array.isArray(data) ? data : (data.jobs || data.data || []);
   return jobs.map(normalizeLinkedInJob);
+}
+
+async function searchLinkedInScraper(query, location, page = 1) {
+  const start = (page - 1) * 25;
+  const locParam = location ? `&location=${encodeURIComponent(location)}` : '';
+  const url = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${encodeURIComponent(query)}${locParam}&start=${start}`;
+
+  console.log(`[LinkedIn Scraper] Searching: "${query}" in "${location || 'Any'}" (start ${start})`);
+
+  const response = await fetch(url, {
+    headers: {
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+
+  if (!response.ok) {
+    throw new Error(`LinkedIn scraper responded ${response.status}`);
+  }
+
+  const html = await response.text();
+  if (!html || html.trim().length === 0) {
+    return [];
+  }
+
+  // Parsear tarjetas de empleo del HTML
+  const jobs = parseLinkedInJobCards(html);
+  console.log(`[LinkedIn Scraper] ✓ ${jobs.length} jobs parsed`);
+
+  // Enriquecer con descripciones (opcional, limitado a los primeros 5 para no saturar)
+  const enriched = [];
+  for (let i = 0; i < jobs.length; i++) {
+    const job = jobs[i];
+    if (i < 5 && job.linkedinUrl) {
+      try {
+        const details = await fetchLinkedInJobDetails(job.linkedinUrl);
+        job.description = details.description || job.description;
+        job.requirements = details.requirements;
+      } catch (e) {
+        // Ignorar errores de detalle
+      }
+    }
+    enriched.push(job);
+  }
+
+  return enriched;
+}
+
+function parseLinkedInJobCards(html) {
+  const jobs = [];
+  // LinkedIn devuelve <li> con tarjetas
+  const cardRegex = /<li[^>]*>\s*<div[^>]*class="base-card[^"]*job-search-card[^"]*"[^>]*data-entity-urn="urn:li:jobPosting:(\d+)"[^>]*>[\s\S]*?<\/div>\s*<\/li>/gi;
+  let match;
+
+  while ((match = cardRegex.exec(html)) !== null) {
+    const cardHtml = match[0];
+    const jobId = match[1];
+
+    const titleMatch = cardHtml.match(/<h3[^>]*class="base-search-card__title"[^>]*>([\s\S]*?)<\/h3>/i);
+    const companyMatch = cardHtml.match(/<a[^>]*class="hidden-nested-link[^"]*"[^>]*>([\s\S]*?)<\/a>/i);
+    const locationMatch = cardHtml.match(/<span[^>]*class="job-search-card__location"[^>]*>([\s\S]*?)<\/span>/i);
+    const timeMatch = cardHtml.match(/<time[^>]*datetime="([^"]+)"/i);
+    const logoMatch = cardHtml.match(/<img[^>]*class="artdeco-entity-image[^"]*"[^>]*data-delayed-url="([^"]+)"/i);
+    const urlMatch = cardHtml.match(/<a[^>]*class="base-card__full-absolute-link[^"]*"[^>]*href="([^"]+)"/i);
+
+    const title = titleMatch ? stripHtml(titleMatch[1]).trim() : '';
+    const company = companyMatch ? stripHtml(companyMatch[1]).trim() : '';
+    const jobLocation = locationMatch ? stripHtml(locationMatch[1]).trim() : '';
+    const postedAt = timeMatch ? timeMatch[1] : new Date().toISOString();
+    const companyLogo = logoMatch ? logoMatch[1] : null;
+    const jobUrl = urlMatch ? urlMatch[1] : `https://www.linkedin.com/jobs/view/${jobId}`;
+
+    if (title && company) {
+      jobs.push({
+        id: `linkedin-${jobId}`,
+        title,
+        company,
+        companyLogo,
+        location: jobLocation,
+        remote: detectRemoteType(title, jobLocation, ''),
+        salary: null,
+        description: '',
+        requirements: extractSkills(`${title} ${company} ${jobLocation}`),
+        postedAt,
+        linkedinUrl: jobUrl,
+        source: 'linkedin',
+        matchScore: 0,
+        matchBreakdown: { skillsMatch: 0, experienceMatch: 0, locationMatch: 0, seniorityMatch: 0 },
+        saved: false,
+        applied: false,
+      });
+    }
+  }
+
+  return jobs;
+}
+
+async function fetchLinkedInJobDetails(jobUrl) {
+  const jobIdMatch = jobUrl.match(/\d+/);
+  if (!jobIdMatch) return { description: '', requirements: [] };
+
+  const detailUrl = `https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/${jobIdMatch[0]}`;
+  const response = await fetch(detailUrl, {
+    headers: {
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    },
+    signal: AbortSignal.timeout(10000),
+  });
+
+  if (!response.ok) {
+    return { description: '', requirements: [] };
+  }
+
+  const html = await response.text();
+  const descMatch = html.match(/<div[^>]*class="description__text[^"]*"[^>]*>([\s\S]*?)<\/div>\s*(?:<div class="show-more-less-html__button-container|<\/div>)/i) ||
+                    html.match(/<div[^>]*class="show-more-less-html__markup[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
+
+  const description = descMatch ? stripHtml(descMatch[1]).trim() : '';
+  return {
+    description,
+    requirements: extractSkills(description),
+  };
 }
 
 function normalizeLinkedInJob(raw) {
@@ -317,159 +374,6 @@ function normalizeLinkedInJob(raw) {
   };
 }
 
-async function searchJSearchJobs(query, location, page = 1) {
-  if (!hasRapidApi) {
-    throw new Error('RapidAPI no configurada');
-  }
-
-  const url = new URL('https://jsearch.p.rapidapi.com/search');
-  url.searchParams.set('query', `${query} in ${location || 'Spain'}`);
-  url.searchParams.set('page', String(page));
-  url.searchParams.set('num_pages', '1');
-  url.searchParams.set('date_posted', 'week');
-
-  console.log(`[JSearch API] Searching: "${query}" in "${location || 'Spain'}"`);
-
-  const response = await fetch(url.toString(), {
-    headers: {
-      'x-rapidapi-host': 'jsearch.p.rapidapi.com',
-      'x-rapidapi-key': RAPIDAPI_KEY,
-    },
-    signal: AbortSignal.timeout(15000),
-  });
-
-  if (!response.ok) {
-    throw new Error(`JSearch API responded ${response.status}`);
-  }
-
-  const data = await response.json();
-  const jobs = data.data || [];
-
-  return jobs.map((raw) => {
-    const description = stripHtml(raw.job_description || '');
-    return {
-      id: `jsearch-${raw.job_id || Math.random().toString(36).slice(2)}`,
-      title: raw.job_title || '',
-      company: raw.employer_name || '',
-      companyLogo: raw.employer_logo || null,
-      location: raw.job_city ? `${raw.job_city}, ${raw.job_country}` : (raw.job_country || ''),
-      remote: raw.job_is_remote ? 'remote' : 'onsite',
-      salary: raw.job_min_salary ? {
-        min: raw.job_min_salary,
-        max: raw.job_max_salary || raw.job_min_salary,
-        currency: raw.job_salary_currency || 'USD',
-      } : null,
-      description,
-      requirements: extractSkills(description),
-      postedAt: raw.job_posted_at_datetime_utc || new Date().toISOString(),
-      linkedinUrl: raw.job_apply_link || raw.job_google_link || '',
-      source: raw.job_publisher?.includes('LinkedIn') ? 'linkedin' : 'jsearch',
-      matchScore: 0,
-      matchBreakdown: { skillsMatch: 0, experienceMatch: 0, locationMatch: 0, seniorityMatch: 0 },
-      saved: false,
-      applied: false,
-    };
-  });
-}
-
-// ═══════════════════════════════════════════════════════════
-// APIS PÚBLICAS - Remotive & Arbeitnow (Siempre disponibles)
-// ═══════════════════════════════════════════════════════════
-
-async function searchRemotiveJobs(query, limit = 20) {
-  console.log(`[Remotive API] Searching: "${query}"`);
-  
-  const response = await fetch(`https://remotive.com/api/remote-jobs?search=${encodeURIComponent(query)}&limit=${limit}`, {
-    signal: AbortSignal.timeout(10000),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Remotive API responded ${response.status}`);
-  }
-
-  const data = await response.json();
-  console.log(`[Remotive API] ✓ ${data.jobs?.length || 0} results`);
-  return (data.jobs || []).map(normalizeRemotiveJob);
-}
-
-function normalizeRemotiveJob(raw) {
-  const description = stripHtml(raw.description || '');
-  return {
-    id: `remotive-${raw.id}`,
-    title: raw.title || 'Sin título',
-    company: raw.company_name || 'Empresa desconocida',
-    companyLogo: raw.company_logo || null,
-    location: raw.candidate_required_location || 'Remote',
-    remote: 'remote',
-    salary: parseSalary(raw.salary || ''),
-    description,
-    requirements: extractSkills(`${description} ${(raw.tags || []).join(' ')}`),
-    postedAt: raw.publication_date || new Date().toISOString(),
-    linkedinUrl: raw.url || '',
-    source: 'remotive',
-    matchScore: 0,
-    matchBreakdown: { skillsMatch: 0, experienceMatch: 0, locationMatch: 0, seniorityMatch: 0 },
-    saved: false,
-    applied: false,
-  };
-}
-
-async function searchArbeitnowJobs(query, location = '') {
-  console.log(`[Arbeitnow API] Searching: "${query}" in "${location}"`);
-  
-  const response = await fetch('https://www.arbeitnow.com/api/job-board-api', {
-    signal: AbortSignal.timeout(10000),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Arbeitnow API responded ${response.status}`);
-  }
-
-  const data = await response.json();
-  let jobs = data.data || [];
-  
-  if (query && query !== 'developer') {
-    const queryLower = query.toLowerCase();
-    jobs = jobs.filter(job => 
-      (job.title && job.title.toLowerCase().includes(queryLower)) ||
-      (job.description && job.description.toLowerCase().includes(queryLower)) ||
-      (job.tags && job.tags.some(tag => tag.toLowerCase().includes(queryLower)))
-    );
-  }
-  
-  if (location) {
-    const locationLower = location.toLowerCase();
-    jobs = jobs.filter(job => 
-      job.location && job.location.toLowerCase().includes(locationLower)
-    );
-  }
-  
-  console.log(`[Arbeitnow API] ✓ ${jobs.length} filtered results`);
-  return jobs.slice(0, 25).map(normalizeArbeitnowJob);
-}
-
-function normalizeArbeitnowJob(raw) {
-  const description = stripHtml(raw.description || '');
-  return {
-    id: `arbeitnow-${raw.slug || Math.random().toString(36).slice(2, 11)}`,
-    title: raw.title || 'Sin título',
-    company: raw.company_name || 'Empresa desconocida',
-    companyLogo: null,
-    location: raw.location || 'Remote',
-    remote: detectRemoteType(raw.title || '', raw.location || '', description),
-    salary: null,
-    description,
-    requirements: extractSkills(description),
-    postedAt: raw.created_at || new Date().toISOString(),
-    linkedinUrl: raw.url || '',
-    source: 'arbeitnow',
-    matchScore: 0,
-    matchBreakdown: { skillsMatch: 0, experienceMatch: 0, locationMatch: 0, seniorityMatch: 0 },
-    saved: false,
-    applied: false,
-  };
-}
-
 // ═══════════════════════════════════════════════════════════
 // RUTAS
 // ═══════════════════════════════════════════════════════════
@@ -477,7 +381,7 @@ function normalizeArbeitnowJob(raw) {
 /**
  * GET /api/jobs/search?q=angular&location=Madrid&page=1&limit=25&sources=all
  * 
- * Fuentes disponibles: adzuna, linkedin, jsearch, remotive, arbeitnow, all
+ * Fuente única: linkedin
  */
 app.get('/api/jobs/search', async (req, res) => {
   const query = req.query.q || 'developer';
@@ -498,74 +402,36 @@ app.get('/api/jobs/search', async (req, res) => {
 
   let allJobs = [];
   const errors = [];
-  const sourceList = sources === 'all' 
-    ? ['adzuna', 'remotive', 'arbeitnow', 'linkedin', 'jsearch']
-    : sources.split(',');
+  const attemptedSources = [];
 
-  // Orden de prioridad basado en las fuentes solicitadas
-  // Si se solicita LinkedIn específicamente, intentarlo primero
-  
-  // 1. LINKEDIN (si se solicita específicamente)
-  if (sourceList.includes('linkedin')) {
+  // Construir lista de fuentes según configuración
+  let sourceList;
+  if (sources === 'all') {
+    sourceList = ['linkedin'];
+  } else {
+    sourceList = sources.split(',');
+  }
+
+  // Helper para ejecutar búsquedas y trackear intentos
+  async function trySource(name, fn) {
+    if (!sourceList.includes(name)) return;
+    attemptedSources.push(name);
     try {
-      const jobs = await searchLinkedInJobs(query, location, page);
+      const jobs = await fn();
+      console.log(`[${name}] ✓ ${jobs.length} jobs found`);
       allJobs.push(...jobs);
-      console.log(`[LinkedIn] ✓ ${jobs.length} jobs found`);
     } catch (err) {
-      console.warn(`[LinkedIn] ✗ ${err.message}`);
-      errors.push({ source: 'linkedin', error: err.message });
+      console.warn(`[${name}] ✗ ${err.message}`);
+      errors.push({ source: name, error: err.message });
     }
   }
 
-  // 2. JSEARCH (si se solicita específicamente)
-  if (sourceList.includes('jsearch')) {
-    try {
-      const jobs = await searchJSearchJobs(query, location, page);
-      allJobs.push(...jobs);
-      console.log(`[JSearch] ✓ ${jobs.length} jobs found`);
-    } catch (err) {
-      console.warn(`[JSearch] ✗ ${err.message}`);
-      errors.push({ source: 'jsearch', error: err.message });
-    }
-  }
+  // SOLO LinkedIn
+  await trySource('linkedin', () => searchLinkedInJobs(query, location, page));
 
-  // 3. ADZUNA (fuente principal para 'all')
-  if (sourceList.includes('adzuna')) {
-    try {
-      const jobs = await searchAdzunaJobs(query, location, page, limit);
-      allJobs.push(...jobs);
-    } catch (err) {
-      console.warn(`[Adzuna] ✗ ${err.message}`);
-      errors.push({ source: 'adzuna', error: err.message });
-    }
-  }
-
-  // 2. Remotive (trabajos remotos)
-  if (sourceList.includes('remotive')) {
-    try {
-      const jobs = await searchRemotiveJobs(query, Math.min(limit, 20));
-      allJobs.push(...jobs);
-    } catch (err) {
-      console.warn(`[Remotive] ✗ ${err.message}`);
-      errors.push({ source: 'remotive', error: err.message });
-    }
-  }
-
-  // 3. Arbeitnow (Europa)
-  if (sourceList.includes('arbeitnow')) {
-    try {
-      const jobs = await searchArbeitnowJobs(query, location);
-      allJobs.push(...jobs);
-    } catch (err) {
-      console.warn(`[Arbeitnow] ✗ ${err.message}`);
-      errors.push({ source: 'arbeitnow', error: err.message });
-    }
-  }
-
-  // Si no hay resultados y hay errores, devolver error
   if (allJobs.length === 0 && errors.length > 0) {
     return res.status(503).json({ 
-      error: 'No se pudieron obtener empleos de ninguna fuente', 
+      error: 'LinkedIn API no disponible. Cuota mensual excedida o API key inválida.', 
       details: errors 
     });
   }
@@ -600,71 +466,24 @@ app.get('/api/jobs/search', async (req, res) => {
 });
 
 /**
- * GET /api/jobs/remote?q=react&limit=20
- * Búsqueda específica de trabajos remotos
- */
-app.get('/api/jobs/remote', async (req, res) => {
-  const query = req.query.q || 'developer';
-  const limit = parseInt(req.query.limit, 10) || 20;
-
-  console.log(`\n[/api/jobs/remote] q="${query}" limit=${limit}`);
-
-  try {
-    const jobs = await searchRemotiveJobs(query, limit);
-    res.json({ jobs, total: jobs.length, source: 'remotive' });
-  } catch (err) {
-    res.status(500).json({ error: 'Error al buscar trabajos remotos', details: err.message });
-  }
-});
-
-/**
- * GET /api/jobs/adzuna?q=react&location=Madrid&page=1
- * Búsqueda directa en Adzuna
- */
-app.get('/api/jobs/adzuna', async (req, res) => {
-  const query = req.query.q || 'developer';
-  const location = req.query.location || '';
-  const page = parseInt(req.query.page, 10) || 1;
-
-  console.log(`\n[/api/jobs/adzuna] q="${query}" location="${location}" page=${page}`);
-
-  try {
-    const jobs = await searchAdzunaJobs(query, location, page, 20);
-    res.json({ jobs, total: jobs.length, source: 'adzuna' });
-  } catch (err) {
-    res.status(500).json({ error: 'Error al buscar en Adzuna', details: err.message });
-  }
-});
-
-/**
  * GET /api/jobs/linkedin-test
  * Endpoint para probar la conexión con LinkedIn
  */
 app.get('/api/jobs/linkedin-test', async (req, res) => {
-  console.log('\n[/api/jobs/linkedin-test] Probando conexión con LinkedIn API...');
-  
-  if (!hasRapidApi) {
-    return res.status(503).json({
-      status: 'error',
-      message: 'RAPIDAPI_KEY no configurada',
-      instructions: 'Ve a https://rapidapi.com/jaypat87/api/linkedin-jobs-search y suscríbete al plan Basic (gratis)',
-    });
-  }
+  console.log('\n[/api/jobs/linkedin-test] Probando conexión con LinkedIn Jobs...');
   
   try {
     const jobs = await searchLinkedInJobs('javascript', 'Spain', 1);
     res.json({
       status: 'success',
-      message: '✓ LinkedIn API configurada correctamente',
+      message: '✓ LinkedIn Jobs scraper funcionando correctamente',
       jobsFound: jobs.length,
       sample: jobs.slice(0, 2),
     });
   } catch (err) {
-    res.status(403).json({
+    res.status(500).json({
       status: 'error',
       message: err.message,
-      instructions: 'Tu API key no tiene suscripción activa. Ve a https://rapidapi.com/jaypat87/api/linkedin-jobs-search y suscríbete al plan Basic (gratis)',
-      currentKey: RAPIDAPI_KEY.substring(0, 10) + '...',
     });
   }
 });
@@ -714,11 +533,9 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     apis: {
-      adzuna: { configured: hasAdzuna, name: 'Adzuna API', requestsPerMonth: 5000 },
-      rapidapi: { configured: hasRapidApi, name: 'RapidAPI', requestsPerMonth: 500 },
+      linkedin: { configured: true, name: 'LinkedIn Jobs (Scraper directo)', requestsPerMonth: 'Unlimited' },
+      rapidapi: { configured: hasRapidApi, name: 'RapidAPI LinkedIn (fallback)', requestsPerMonth: 500 },
       gemini: { configured: hasGemini, name: 'Google Gemini', requestsPerMonth: 'Generous free tier' },
-      remotive: { configured: true, name: 'Remotive', requestsPerMonth: 'Unlimited' },
-      arbeitnow: { configured: true, name: 'Arbeitnow', requestsPerMonth: 'Unlimited' },
     },
     cache: {
       entries: cache.size,
@@ -1043,8 +860,7 @@ app.listen(PORT, () => {
   console.log(`  ✓ SmartJob API server en http://localhost:${PORT}`);
   console.log(`\n  📡 Endpoints disponibles:`);
   console.log(`    GET  /api/jobs/search?q=angular&location=Madrid&sources=all`);
-  console.log(`    GET  /api/jobs/adzuna?q=react&location=London`);
-  console.log(`    GET  /api/jobs/remote?q=python`);
+  console.log(`    GET  /api/jobs/linkedin-test`);
   console.log(`    GET  /api/skills/suggest?q=java`);
   console.log(`    GET  /api/categories`);
   console.log(`    GET  /api/health`);

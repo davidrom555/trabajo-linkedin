@@ -1,9 +1,6 @@
-import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, Output, EventEmitter } from '@angular/core';
 import {
-  IonList,
-  IonContent,
   IonSpinner,
-  IonText,
   IonCard,
   IonCardContent,
   IonIcon
@@ -18,12 +15,8 @@ import { documentTextOutline } from 'ionicons/icons';
 @Component({
   selector: 'app-jobs-list',
   standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    IonList,
-    IonContent,
     IonSpinner,
-    IonText,
     IonCard,
     IonCardContent,
     IonIcon,
@@ -55,7 +48,6 @@ import { documentTextOutline } from 'ionicons/icons';
               <div class="job-item" [style.animation-delay]="i * 50 + 'ms'">
                 <app-job-card
                   [job]="job"
-                  [userSkills]="userSkills"
                   (save)="jobSave.emit($event)"
                   (dismiss)="jobDismiss.emit($event)"
                   (apply)="jobApply.emit($event)"
@@ -200,7 +192,6 @@ import { documentTextOutline } from 'ionicons/icons';
 })
 export class JobsListComponent {
   @Input() jobs: Job[] = [];
-  @Input() userSkills: string[] = [];
   @Input() isLoading: boolean = false;
   @Input() hasMore: boolean = false;
 

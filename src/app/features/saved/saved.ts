@@ -10,7 +10,6 @@ import {
 import { addIcons } from 'ionicons';
 import { bookmarkOutline } from 'ionicons/icons';
 import { JobService } from '../../core/services/job.service';
-import { ProfileService } from '../../core/services/profile.service';
 import { JobCardComponent } from '../dashboard/components/job-card/job-card';
 
 @Component({
@@ -50,7 +49,6 @@ import { JobCardComponent } from '../dashboard/components/job-card/job-card';
           @for (job of jobService.savedJobs(); track job.id) {
             <app-job-card
               [job]="job"
-              [userSkills]="profileService.profile()?.skills ?? []"
               (save)="onToggleSave($event)"
               (dismiss)="onDismiss($event)"
             />
@@ -118,8 +116,6 @@ import { JobCardComponent } from '../dashboard/components/job-card/job-card';
 })
 export class SavedPage {
   readonly jobService = inject(JobService);
-  readonly profileService = inject(ProfileService);
-
   constructor() {
     addIcons({ 'bookmark-outline': bookmarkOutline });
   }

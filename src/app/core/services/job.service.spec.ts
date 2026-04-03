@@ -1,14 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { JobService } from './job.service';
 import { LinkedInApiService } from './linkedin-api.service';
-import { ProfileService } from './profile.service';
-import { Job, TimeFilter } from '../models/job.model';
-import { UserProfile } from '../models/profile.model';
+import { Job } from '../models/job.model';
 
 describe('JobService', () => {
   let service: JobService;
   let linkedinApiService: jasmine.SpyObj<LinkedInApiService>;
-  let profileService: jasmine.SpyObj<ProfileService>;
 
   const mockJob: Job = {
     id: '1',
@@ -33,33 +30,17 @@ describe('JobService', () => {
     applied: false,
   };
 
-  const mockProfile: UserProfile = {
-    id: '1',
-    fullName: 'John Developer',
-    headline: 'Senior Frontend Developer',
-    summary: 'Experienced frontend developer',
-    skills: ['JavaScript', 'React', 'TypeScript', 'Angular'],
-    experience: [],
-    education: [],
-    languages: ['English', 'Spanish'],
-    location: 'USA',
-  };
-
   beforeEach(() => {
     const linkedinSpy = jasmine.createSpyObj('LinkedInApiService', [
       'fetchJobs',
       'healthCheck',
       'clearServerCache',
     ]);
-    const profileSpy = jasmine.createSpyObj('ProfileService', [
-      'getProfile',
-    ]);
 
     TestBed.configureTestingModule({
       providers: [
         JobService,
         { provide: LinkedInApiService, useValue: linkedinSpy },
-        { provide: ProfileService, useValue: profileSpy },
       ],
     });
 
@@ -67,9 +48,6 @@ describe('JobService', () => {
     linkedinApiService = TestBed.inject(
       LinkedInApiService
     ) as jasmine.SpyObj<LinkedInApiService>;
-    profileService = TestBed.inject(
-      ProfileService
-    ) as jasmine.SpyObj<ProfileService>;
   });
 
   describe('initialization', () => {
@@ -157,46 +135,6 @@ describe('JobService', () => {
       service.dismissJob(mockJob.id);
 
       expect(service.jobs().length).toBe(0);
-    });
-  });
-
-  describe('matching algorithm', () => {
-    it('should calculate match score for job with profile', () => {
-      profileService.profile.and.returnValue(mockProfile);
-      service._jobs.set([mockJob]);
-
-      const jobs = service.jobs();
-
-      expect(jobs[0].matchScore).toBeGreaterThanOrEqual(0);
-      expect(jobs[0].matchScore).toBeLessThanOrEqual(100);
-    });
-
-    it('should have proper match breakdown', () => {
-      profileService.profile.and.returnValue(mockProfile);
-      service._jobs.set([mockJob]);
-
-      const jobs = service.jobs();
-      const breakdown = jobs[0].matchBreakdown;
-
-      expect(breakdown.skillsMatch).toBeGreaterThanOrEqual(0);
-      expect(breakdown.experienceMatch).toBeGreaterThanOrEqual(0);
-      expect(breakdown.locationMatch).toBeGreaterThanOrEqual(0);
-      expect(breakdown.seniorityMatch).toBeGreaterThanOrEqual(0);
-    });
-
-    it('should prioritize skills matching', () => {
-      const jobWithSkills: Job = {
-        ...mockJob,
-        requirements: ['JavaScript', 'React', 'TypeScript'],
-      };
-
-      profileService.profile.and.returnValue(mockProfile);
-      service._jobs.set([jobWithSkills]);
-
-      const jobs = service.jobs();
-
-      // Skills match should be high since all required skills are in profile
-      expect(jobs[0].matchBreakdown.skillsMatch).toBeGreaterThan(50);
     });
   });
 

@@ -5,7 +5,6 @@ import {
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
-  personOutline,
   bookmarkOutline,
   compassOutline,
 } from 'ionicons/icons';
@@ -34,18 +33,6 @@ import { JobService } from '../../core/services/job.service';
             <div class="tab-indicator"></div>
           </div>
           <span class="tab-label">Explorar</span>
-        </button>
-
-        <button 
-          class="tab-button" 
-          [class.active]="isActive('profile')"
-          (click)="navigateTo('profile')"
-        >
-          <div class="tab-icon-wrapper">
-            <ion-icon name="person-outline" class="tab-icon"></ion-icon>
-            <div class="tab-indicator"></div>
-          </div>
-          <span class="tab-label">Perfil</span>
         </button>
 
         <button 
@@ -229,7 +216,6 @@ export class TabsPage {
   constructor() {
     addIcons({
       'compass-outline': compassOutline,
-      'person-outline': personOutline,
       'bookmark-outline': bookmarkOutline,
     });
   }

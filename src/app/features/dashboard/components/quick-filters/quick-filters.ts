@@ -1,5 +1,5 @@
 import { Component, Output, EventEmitter, Input, ChangeDetectionStrategy } from '@angular/core';
-import { IonButton, IonIcon } from '@ionic/angular/standalone';
+import { IonIcon } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { wifiOutline, briefcaseOutline, globeOutline, flashOutline, schoolOutline, trendingUpOutline, buildOutline } from 'ionicons/icons';
 
@@ -13,7 +13,7 @@ interface QuickFilter {
 @Component({
   selector: 'app-quick-filters',
   standalone: true,
-  imports: [IonButton, IonIcon],
+  imports: [IonIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="filters-container">
@@ -95,15 +95,7 @@ export class QuickFiltersComponent {
   @Input() activeFilter: string = '';
   @Output() filterSelect = new EventEmitter<string>();
 
-  filters: QuickFilter[] = [
-    { id: 'remote', label: 'Remoto', icon: 'wifi-outline', action: 'remote' },
-    { id: 'fulltime', label: 'Tiempo Completo', icon: 'briefcase-outline', action: 'fulltime' },
-    { id: 'global', label: 'Global', icon: 'globe-outline', action: 'global' },
-    { id: 'trending', label: 'Trending', icon: 'flash-outline', action: 'trending' },
-    { id: 'junior', label: 'Junior', icon: 'school-outline', action: 'junior' },
-    { id: 'senior', label: 'Senior', icon: 'trending-up-outline', action: 'senior' },
-    { id: 'startup', label: 'Startup', icon: 'build-outline', action: 'startup' },
-  ];
+  filters: QuickFilter[] = [];
 
   constructor() {
     addIcons({ wifiOutline, briefcaseOutline, globeOutline, flashOutline, schoolOutline, trendingUpOutline, buildOutline });
