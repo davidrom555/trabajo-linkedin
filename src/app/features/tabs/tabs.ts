@@ -2,25 +2,19 @@ import { Component, inject } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import {
   IonIcon,
-  IonBadge,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
-  briefcaseOutline,
-  briefcase,
   personOutline,
-  person,
   bookmarkOutline,
-  bookmark,
   compassOutline,
-  compass,
 } from 'ionicons/icons';
 import { JobService } from '../../core/services/job.service';
 
 @Component({
   selector: 'app-tabs',
   standalone: true,
-  imports: [RouterModule, IonIcon, IonBadge],
+  imports: [RouterModule, IonIcon],
   template: `
     <div class="tabs-container">
       <!-- Content Area -->
@@ -235,11 +229,8 @@ export class TabsPage {
   constructor() {
     addIcons({
       'compass-outline': compassOutline,
-      compass,
       'person-outline': personOutline,
-      person,
       'bookmark-outline': bookmarkOutline,
-      bookmark,
     });
   }
 

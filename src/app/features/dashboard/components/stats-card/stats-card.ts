@@ -1,12 +1,12 @@
 import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
-import { IonCard, IonCardContent, IonIcon, IonBadge } from '@ionic/angular/standalone';
+import { IonCard, IonCardContent, IonIcon } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { trendingUpOutline, flashOutline, globeOutline } from 'ionicons/icons';
 
 @Component({
   selector: 'app-stats-card',
   standalone: true,
-  imports: [IonCard, IonCardContent, IonIcon, IonBadge],
+  imports: [IonCard, IonCardContent, IonIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ion-card class="stats-card">

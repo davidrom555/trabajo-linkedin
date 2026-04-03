@@ -1,5 +1,5 @@
 import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy } from '@angular/core';
-import { IonCard, IonCardContent, IonButton, IonIcon, IonBadge, IonChip } from '@ionic/angular/standalone';
+import { IonCard, IonCardContent, IonButton, IonIcon } from '@ionic/angular/standalone';
 import { CommonModule } from '@angular/common';
 import { addIcons } from 'ionicons';
 import { arrowForwardOutline, sparklesOutline, checkmarkOutline } from 'ionicons/icons';
@@ -9,7 +9,7 @@ import { Job } from '../../../../core/models/job.model';
   selector: 'app-recommendation-banner',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IonCard, IonCardContent, IonButton, IonIcon, IonBadge, IonChip, CommonModule],
+  imports: [IonCard, IonCardContent, IonButton, IonIcon, CommonModule],
   template: `
     @if (topJob && topJob.matchScore >= 70) {
       <div class="recommendation-container">
