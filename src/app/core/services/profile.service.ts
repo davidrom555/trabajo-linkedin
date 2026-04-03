@@ -2,10 +2,14 @@ import { Injectable, inject, signal, computed } from '@angular/core';
 import { Capacitor } from '@capacitor/core';
 import { UserProfile } from '../models/profile.model';
 import { CvParserService } from './cv-parser.service';
+import { DocumentExtractorService } from './document-extractor.service';
+import { AiCvParserService } from './ai-cv-parser.service';
 
 @Injectable({ providedIn: 'root' })
 export class ProfileService {
   private readonly cvParser = inject(CvParserService);
+  private readonly docExtractor = inject(DocumentExtractorService);
+  private readonly aiParser = inject(AiCvParserService);
   private readonly STORAGE_KEY = 'smartjob_profile';
   private parserWorker: Worker | null = null;
 
@@ -66,12 +70,29 @@ export class ProfileService {
         await this.saveToNativeFs(file);
       }
 
-      // Parse the CV using Web Worker if available, otherwise fallback to main thread
-      const profile = this.parserWorker
-        ? await this.parseWithWorker(file)
-        : await this.cvParser.parseFile(file);
+      let profile: UserProfile | null = null;
 
-      console.log('[ProfileService] Parsed profile:', profile);
+      // 1. Extract raw text locally
+      const rawText = await this.docExtractor.extractText(file);
+      this._rawCvText.set(rawText);
+      console.log('[ProfileService] Extracted text length:', rawText.length);
+
+      // 2. Try AI parsing with Gemini first
+      try {
+        profile = await this.aiParser.parseCv(rawText, file.name);
+        console.log('[ProfileService] ✓ Parsed with Gemini AI:', profile.fullName);
+      } catch (aiErr) {
+        console.warn('[ProfileService] Gemini AI parsing failed, falling back to local parser:', aiErr);
+      }
+
+      // 3. Fallback to local parser if AI failed
+      if (!profile) {
+        profile = this.parserWorker
+          ? await this.parseWithWorker(file)
+          : await this.cvParser.parseFile(file, true);
+        console.log('[ProfileService] Parsed with local parser:', profile.fullName);
+      }
+
       console.log('[ProfileService] Skills found:', profile.skills);
       console.log('[ProfileService] Experience entries:', profile.experience.length);
 

@@ -61,6 +61,10 @@ export class JobService {
   private readonly _error = signal<string | null>(null);
   private readonly _lastFetchTime = signal<Date | null>(null);
   private readonly _apiStatus = signal<ApiStatus | null>(null);
+  
+  // ── Loading Control ────────────────────────────────────
+  private _loadJobsPromise: Promise<void> | null = null;
+  private _profileLoadTimeout: any = null;
 
   // ── Persisted State ────────────────────────────────────
   private readonly SAVED_JOBS_KEY = 'smartjob_saved_jobs';
@@ -98,6 +102,10 @@ export class JobService {
       };
       localStorage.setItem(this.FILTERS_KEY, JSON.stringify(filters));
     });
+    
+    // NOTA: El efecto automático de carga de trabajos fue DESACTIVADO
+    // El usuario debe elegir manualmente cuándo buscar trabajos relacionados con su perfil
+    // Esto evita múltiples llamadas automáticas a la API
   }
 
   /** All jobs with match scores calculated */
@@ -219,6 +227,29 @@ export class JobService {
   // ── Actions ────────────────────────────────────────────
 
   async loadJobs(forceRefresh = false): Promise<void> {
+    // Prevenir llamadas concurrentes - si ya hay una carga en progreso, esperarla
+    if (this._loadJobsPromise) {
+      console.log('[JobService] Load already in progress, waiting...');
+      return this._loadJobsPromise;
+    }
+
+    // Log para debugging - quién está llamando
+    const stack = new Error().stack;
+    console.log('[JobService] loadJobs called with forceRefresh:', forceRefresh);
+    console.trace('[JobService] Call stack:');
+
+    // Crear la promesa de carga
+    this._loadJobsPromise = this._doLoadJobs(forceRefresh);
+    
+    try {
+      await this._loadJobsPromise;
+    } finally {
+      // Limpiar la promesa al finalizar (éxito o error)
+      this._loadJobsPromise = null;
+    }
+  }
+
+  private async _doLoadJobs(forceRefresh = false): Promise<void> {
     const profile = this.profileService.profile();
     this._isLoading.set(true);
     this._error.set(null);
@@ -235,6 +266,8 @@ export class JobService {
       // Determinar fuentes a usar
       const sources = this._selectedSources();
       const sourceParam = sources.includes('all') ? undefined : sources;
+
+      console.log('[JobService] Fetching jobs with keywords:', keywords);
 
       const jobs = await this.linkedInApi.fetchJobs(
         keywords,
@@ -264,6 +297,64 @@ export class JobService {
     this._searchQuery.set(query);
     this._location.set(location);
     await this.loadJobs(true);
+  }
+
+  async loadJobsWithSkills(skills: string[], forceRefresh = false): Promise<void> {
+    // Prevenir llamadas concurrentes
+    if (this._loadJobsPromise) {
+      console.log('[JobService] Load already in progress, waiting...');
+      return this._loadJobsPromise;
+    }
+
+    this._loadJobsPromise = this._doLoadJobsWithSkills(skills, forceRefresh);
+    
+    try {
+      await this._loadJobsPromise;
+    } finally {
+      this._loadJobsPromise = null;
+    }
+  }
+
+  private async _doLoadJobsWithSkills(skills: string[], forceRefresh = false): Promise<void> {
+    const profile = this.profileService.profile();
+    this._isLoading.set(true);
+    this._error.set(null);
+
+    try {
+      // Usar la ubicación seleccionada o la del perfil
+      const location = this._location() || profile?.location || '';
+      
+      // Usar solo las skills proporcionadas
+      const keywords = skills.length > 0 ? skills : ['developer'];
+      
+      // Determinar fuentes a usar
+      const sources = this._selectedSources();
+      const sourceParam = sources.includes('all') ? undefined : sources;
+
+      console.log('[JobService] Fetching jobs with selected skills:', keywords);
+
+      const jobs = await this.linkedInApi.fetchJobs(
+        keywords,
+        location,
+        this._timeFilter(),
+        { sources: sourceParam, useCache: !forceRefresh }
+      );
+
+      // Fusionar con estado de guardados
+      const savedIds = this.getSavedJobIds();
+      const jobsWithSavedState = jobs.map(job => ({
+        ...job,
+        saved: savedIds.has(job.id)
+      }));
+
+      this._jobs.set(jobsWithSavedState);
+      this._lastFetchTime.set(new Date());
+    } catch (e: any) {
+      console.error('Error loading jobs:', e);
+      this._error.set(e.message || 'Error al cargar ofertas. Intenta de nuevo.');
+    } finally {
+      this._isLoading.set(false);
+    }
   }
 
   async checkApiStatus(): Promise<void> {

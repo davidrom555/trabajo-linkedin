@@ -42,6 +42,7 @@ import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { ProfileService } from '../../core/services/profile.service';
 import { CvUploadComponent } from './components/cv-upload/cv-upload';
 import { EditProfileComponent } from './components/edit-profile/edit-profile';
+import { ExtractionDiagnosticComponent } from './components/extraction-diagnostic/extraction-diagnostic';
 
 @Component({
   selector: 'app-profile',
@@ -61,6 +62,7 @@ import { EditProfileComponent } from './components/edit-profile/edit-profile';
     IonFab,
     IonFabButton,
     CvUploadComponent,
+    ExtractionDiagnosticComponent,
   ],
   template: `
     <!-- Header -->
@@ -156,6 +158,9 @@ import { EditProfileComponent } from './components/edit-profile/edit-profile';
           </div>
           <app-cv-upload (uploaded)="onCvUploaded()" />
         </div>
+
+        <!-- Extraction Diagnostic -->
+        <app-extraction-diagnostic />
 
         <!-- About Section -->
         @if (profile.summary) {

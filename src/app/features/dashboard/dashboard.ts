@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, ChangeDetectorRef, effect } from '@angular/core';
 import { Router } from '@angular/router';
 import {
   IonHeader,
@@ -49,6 +49,7 @@ import {
   ellipsisVerticalOutline,
   compassOutline,
   chevronDownOutline,
+  chevronUpOutline,
   createOutline,
   documentTextOutline,
   chevronForwardOutline,
@@ -207,21 +208,71 @@ import { RecommendationBannerComponent } from './components/recommendation-banne
             <div class="rec-info">
               <span class="rec-title">Recomendaciones para {{ profileService.profile()!.fullName.split(' ')[0] }}</span>
               <span class="rec-subtitle">
-                Basado en {{ profileService.profile()!.skills.length }} skills · {{ profileService.profile()!.experience.length }} experiencias
+                {{ selectedSkillsForSearch.length }} de {{ profileService.profile()!.skills.length }} skills seleccionadas
               </span>
             </div>
             <button class="rec-edit-btn" (click)="goToProfile()">
               <ion-icon name="create-outline"></ion-icon>
             </button>
           </div>
-          <div class="rec-skills">
-            @for (skill of profileService.profile()!.skills.slice(0, 5); track skill) {
-              <span class="rec-skill-tag">{{ skill }}</span>
-            }
-            @if (profileService.profile()!.skills.length > 5) {
-              <span class="rec-skill-more">+{{ profileService.profile()!.skills.length - 5 }}</span>
+          
+          <!-- Skill Selector -->
+          <div class="rec-skills-selector">
+            <div class="selector-header">
+              <button 
+                class="selector-toggle" 
+                (click)="showSkillSelector = !showSkillSelector"
+              >
+                <ion-icon [name]="showSkillSelector ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+                {{ showSkillSelector ? 'Ocultar skills' : 'Seleccionar skills' }}
+              </button>
+              @if (showSkillSelector) {
+                <div class="selector-actions">
+                  <button class="action-link" (click)="selectAllSkills()">Todas</button>
+                  <button class="action-link" (click)="clearAllSkills()">Ninguna</button>
+                </div>
+              }
+            </div>
+            
+            @if (showSkillSelector) {
+              <div class="skills-checkbox-list">
+                @for (skill of profileService.profile()!.skills; track skill) {
+                  <label class="skill-checkbox-item">
+                    <input 
+                      type="checkbox" 
+                      [checked]="selectedSkillsForSearch.includes(skill)"
+                      (change)="toggleSkillSelection(skill)"
+                    />
+                    <span class="skill-checkbox-text">{{ skill }}</span>
+                  </label>
+                }
+              </div>
+            } @else {
+              <!-- Compact View of Selected Skills -->
+              <div class="rec-skills">
+                @if (selectedSkillsForSearch.length === 0) {
+                  <span class="rec-skill-tag empty">Ninguna skill seleccionada</span>
+                } @else {
+                  @for (skill of selectedSkillsForSearch.slice(0, 5); track skill) {
+                    <span class="rec-skill-tag">{{ skill }}</span>
+                  }
+                  @if (selectedSkillsForSearch.length > 5) {
+                    <span class="rec-skill-more">+{{ selectedSkillsForSearch.length - 5 }}</span>
+                  }
+                }
+              </div>
             }
           </div>
+          
+          <button 
+            class="rec-search-btn" 
+            (click)="searchRelatedJobs()"
+            [disabled]="selectedSkillsForSearch.length === 0"
+            [class.disabled]="selectedSkillsForSearch.length === 0"
+          >
+            <ion-icon name="search-outline"></ion-icon>
+            {{ selectedSkillsForSearch.length === 0 ? 'Selecciona al menos una skill' : 'Buscar con ' + selectedSkillsForSearch.length + ' skills' }}
+          </button>
         </div>
       } @else {
         <!-- Prompt to create profile -->
@@ -858,10 +909,103 @@ import { RecommendationBannerComponent } from './components/recommendation-banne
       box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
     
+    /* Skill Selector Styles */
+    .rec-skills-selector {
+      margin-bottom: 12px;
+    }
+    
+    .selector-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    
+    .selector-toggle {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.6);
+      border: 1px solid #a7f3d0;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--sj-primary-dark);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      
+      &:active {
+        background: rgba(255, 255, 255, 0.9);
+      }
+      
+      ion-icon {
+        font-size: 14px;
+      }
+    }
+    
+    .selector-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .action-link {
+      padding: 4px 8px;
+      background: transparent;
+      border: none;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--sj-primary);
+      cursor: pointer;
+      
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+    
+    .skills-checkbox-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 150px;
+      overflow-y: auto;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+    
+    .skill-checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      
+      &:hover {
+        background: rgba(255, 255, 255, 0.8);
+      }
+      
+      input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--sj-primary);
+        cursor: pointer;
+      }
+    }
+    
+    .skill-checkbox-text {
+      font-size: 12px;
+      color: var(--sj-text-primary);
+    }
+    
     .rec-skills {
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
+      min-height: 28px;
     }
     
     .rec-skill-tag {
@@ -872,6 +1016,12 @@ import { RecommendationBannerComponent } from './components/recommendation-banne
       font-weight: 500;
       color: var(--sj-primary-dark);
       border: 1px solid #a7f3d0;
+      
+      &.empty {
+        background: rgba(255, 255, 255, 0.5);
+        color: var(--sj-text-tertiary);
+        border-style: dashed;
+      }
     }
     
     .rec-skill-more {
@@ -879,6 +1029,38 @@ import { RecommendationBannerComponent } from './components/recommendation-banne
       font-size: 11px;
       font-weight: 600;
       color: var(--sj-text-tertiary);
+    }
+    
+    .rec-search-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 12px;
+      background: var(--sj-primary);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      
+      &:active:not(:disabled) {
+        transform: scale(0.98);
+      }
+      
+      &:disabled,
+      &.disabled {
+        background: #a7f3d0;
+        color: #6b7280;
+        cursor: not-allowed;
+      }
+      
+      ion-icon {
+        font-size: 16px;
+      }
     }
     
     /* Create Profile Banner */
@@ -1525,7 +1707,7 @@ import { RecommendationBannerComponent } from './components/recommendation-banne
     }
   `,
 })
-export class DashboardPage implements OnInit {
+export class DashboardPage implements OnInit, OnDestroy {
   readonly jobService = inject(JobService);
   readonly profileService = inject(ProfileService);
   readonly linkedInApi = inject(LinkedInApiService);
@@ -1543,6 +1725,11 @@ export class DashboardPage implements OnInit {
 
   // Search Suggestions
   showSuggestions = false;
+  
+  // Skill Selection for Recommendations
+  selectedSkillsForSearch: string[] = [];
+  showSkillSelector = false;
+  
   readonly popularSearches = [
     'Desarrollador Frontend',
     'Desarrollador Backend',
@@ -1613,6 +1800,7 @@ export class DashboardPage implements OnInit {
       'ellipsis-vertical-outline': ellipsisVerticalOutline,
       'compass-outline': compassOutline,
       'chevron-down-outline': chevronDownOutline,
+      'chevron-up-outline': chevronUpOutline,
       'create-outline': createOutline,
       'document-text-outline': documentTextOutline,
       'chevron-forward-outline': chevronForwardOutline,
@@ -1621,7 +1809,27 @@ export class DashboardPage implements OnInit {
   }
 
   ngOnInit(): void {
-    this.loadJobs();
+    // NOTA: No cargar trabajos automáticamente al iniciar
+    // El usuario debe buscar manualmente o usar el botón "Buscar trabajos relacionados"
+    // Esto evita múltiples llamadas automáticas a la API
+    console.log('[Dashboard] Initialized. No auto-load. User must search manually.');
+  }
+
+  // Initialize selected skills when profile changes
+  onProfileSkillsChange(): void {
+    const profile = this.profileService.profile();
+    if (profile) {
+      // No pre-select any skills - user must choose manually
+      this.selectedSkillsForSearch = [];
+      console.log('[Dashboard] Profile loaded. Select skills to search.');
+    }
+  }
+
+  ngOnDestroy(): void {
+    // Limpiar timeout pendiente para evitar memory leaks
+    if (this.searchTimeout) {
+      clearTimeout(this.searchTimeout);
+    }
   }
 
   async loadJobs(): Promise<void> {
@@ -1633,7 +1841,60 @@ export class DashboardPage implements OnInit {
     }
   }
 
-  // Search with debounce
+  // Toggle skill selection
+  toggleSkillSelection(skill: string): void {
+    const index = this.selectedSkillsForSearch.indexOf(skill);
+    if (index === -1) {
+      this.selectedSkillsForSearch = [...this.selectedSkillsForSearch, skill];
+    } else {
+      this.selectedSkillsForSearch = this.selectedSkillsForSearch.filter(s => s !== skill);
+    }
+  }
+
+  // Select all skills
+  selectAllSkills(): void {
+    const profile = this.profileService.profile();
+    if (profile) {
+      this.selectedSkillsForSearch = [...profile.skills];
+    }
+  }
+
+  // Clear all skill selections
+  clearAllSkills(): void {
+    this.selectedSkillsForSearch = [];
+  }
+
+  // Buscar trabajos relacionados con las skills seleccionadas
+  async searchRelatedJobs(): Promise<void> {
+    if (this.selectedSkillsForSearch.length === 0) {
+      return;
+    }
+    
+    const profile = this.profileService.profile();
+    if (!profile) return;
+    
+    // Limpiar búsqueda manual
+    this.jobService.setSearchQuery('');
+    
+    // Usar ubicación del perfil si existe
+    if (profile.location) {
+      this.jobService.setLocation(profile.location);
+    }
+    
+    console.log('[Dashboard] Searching jobs with selected skills:', this.selectedSkillsForSearch);
+    await this.jobService.loadJobsWithSkills(this.selectedSkillsForSearch, true);
+    this.cdr.detectChanges();
+  }
+
+  // Buscar por una skill específica
+  async searchBySkill(skill: string): Promise<void> {
+    this.jobService.setSearchQuery(skill);
+    this.showSuggestions = false;
+    await this.jobService.loadJobs(true);
+    this.cdr.detectChanges();
+  }
+
+  // Search with debounce - solo actualiza el query, NO busca automáticamente
   onSearch(event: Event): void {
     const value = (event.target as HTMLInputElement).value;
     
@@ -1645,10 +1906,11 @@ export class DashboardPage implements OnInit {
     // Show suggestions immediately
     this.showSuggestions = true;
     
-    // Debounce the search update
+    // Debounce para actualizar el query (sin hacer la búsqueda automática)
+    // Solo actualiza el valor en el servicio para filtrado local
     this.searchTimeout = setTimeout(() => {
       this.jobService.setSearchQuery(value);
-    }, 100);
+    }, 800);
   }
 
   onSearchBlur(): void {
@@ -1659,17 +1921,32 @@ export class DashboardPage implements OnInit {
   }
 
   onSearchSubmit(): void {
+    // Cancelar cualquier debounce pendiente
+    if (this.searchTimeout) {
+      clearTimeout(this.searchTimeout);
+    }
     this.showSuggestions = false;
-    this.jobService.loadJobs(true);
+    // Solo hacer la búsqueda si hay un query
+    if (this.jobService.searchQuery().trim()) {
+      this.jobService.loadJobs(true);
+    }
   }
 
   selectSuggestion(suggestion: string): void {
+    // Cancelar cualquier debounce pendiente
+    if (this.searchTimeout) {
+      clearTimeout(this.searchTimeout);
+    }
     this.jobService.setSearchQuery(suggestion);
     this.showSuggestions = false;
     this.jobService.loadJobs(true);
   }
 
   clearSearch(): void {
+    // Cancelar cualquier debounce pendiente
+    if (this.searchTimeout) {
+      clearTimeout(this.searchTimeout);
+    }
     this.jobService.setSearchQuery('');
     this.showSuggestions = false;
     this.jobService.loadJobs(true);

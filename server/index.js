@@ -8,12 +8,18 @@ const PORT = process.env.PORT || 3333;
 const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || '';
 const ADZUNA_APP_ID = process.env.ADZUNA_APP_ID || '';
 const ADZUNA_APP_KEY = process.env.ADZUNA_APP_KEY || '';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 
 // ═══════════════════════════════════════════════════════════
 // CONFIGURACIÓN
 // ═══════════════════════════════════════════════════════════
 
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:4200', 'http://localhost:4201', 'http://127.0.0.1:4200', 'http://127.0.0.1:4201'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
 app.use(express.json());
 
 // ── Validate API Keys on startup ──────────────────────────
@@ -22,6 +28,7 @@ console.log('\n  🔑 Verificando configuración de APIs...\n');
 const hasAdzuna = ADZUNA_APP_ID && ADZUNA_APP_ID !== 'tu_app_id' && 
                   ADZUNA_APP_KEY && ADZUNA_APP_KEY !== 'tu_app_key';
 const hasRapidApi = RAPIDAPI_KEY && RAPIDAPI_KEY !== 'tu_api_key_aqui';
+const hasGemini = GEMINI_API_KEY && GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY' && GEMINI_API_KEY !== 'tu_api_key_aqui';
 
 if (!hasAdzuna) {
   console.warn('  ⚠️  ADZUNA_API: No configurada');
@@ -35,6 +42,14 @@ if (!hasRapidApi) {
   console.warn('  ⚠️  RAPIDAPI_KEY: No configurada (opcional)');
 } else {
   console.log('  ✓ RAPIDAPI_KEY: CONFIGURADA');
+}
+
+if (!hasGemini) {
+  console.warn('  ⚠️  GEMINI_API_KEY: No configurada (opcional)');
+  console.warn('     → Ve a https://aistudio.google.com/app/apikey');
+  console.warn('     → Crea cuenta gratuita y genera API key');
+} else {
+  console.log('  ✓ GEMINI_API_KEY: CONFIGURADA');
 }
 
 console.log('');
@@ -701,6 +716,7 @@ app.get('/api/health', (req, res) => {
     apis: {
       adzuna: { configured: hasAdzuna, name: 'Adzuna API', requestsPerMonth: 5000 },
       rapidapi: { configured: hasRapidApi, name: 'RapidAPI', requestsPerMonth: 500 },
+      gemini: { configured: hasGemini, name: 'Google Gemini', requestsPerMonth: 'Generous free tier' },
       remotive: { configured: true, name: 'Remotive', requestsPerMonth: 'Unlimited' },
       arbeitnow: { configured: true, name: 'Arbeitnow', requestsPerMonth: 'Unlimited' },
     },
@@ -722,6 +738,306 @@ app.post('/api/cache/clear', (req, res) => {
   res.json({ message: 'Caché limpiada', entriesCleared: size });
 });
 
+/**
+ * POST /api/cv/parse
+ * Parsea un CV usando Google Gemini AI
+ */
+app.post('/api/cv/parse', async (req, res) => {
+  if (!hasGemini) {
+    return res.status(503).json({
+      error: 'GEMINI_API_KEY no configurada',
+      instructions: 'Ve a https://aistudio.google.com/app/apikey y genera una API key gratuita',
+    });
+  }
+
+  const { text, fileName } = req.body;
+  if (!text || typeof text !== 'string') {
+    return res.status(400).json({ error: 'Se requiere el texto del CV' });
+  }
+
+  console.log(`\n[/api/cv/parse] Parsing CV with Gemini (${text.length} chars)`);
+
+  try {
+    const profile = await parseCvWithGemini(text, fileName);
+    console.log(`[Gemini] ✓ Parsed profile for: ${profile.fullName}`);
+    res.json({ profile });
+  } catch (err) {
+    console.error(`[Gemini] ✗ Parsing failed:`, err.message);
+    res.status(500).json({ error: 'Error al parsear CV con Gemini', details: err.message });
+  }
+});
+
+async function parseCvWithGemini(text, fileName) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+  const prompt = `Extrae la información estructurada de este currículum vitae. Devuelve un JSON válido y completo.
+
+Reglas:
+- fullName: nombre completo del candidato.
+- headline: título profesional breve (ej: "Senior Full-stack Developer").
+- summary: resumen profesional conciso (máx 400 caracteres).
+- skills: array con TODAS las habilidades técnicas y soft skills encontradas.
+- experience: array de experiencias laborales. startDate y endDate en formato YYYY-MM. Si sigue en curso, endDate es null.
+- education: array de educación. type puede ser degree, certification, bootcamp o course. startDate puede ser solo año (YYYY) o YYYY-MM.
+- languages: array de idiomas (solo el nombre, sin niveles).
+- location: ciudad y/o país.
+- email: correo electrónico o null.
+- phone: teléfono o null.
+
+Nombre del archivo: ${fileName || 'CV'}
+
+CV TEXT:
+"""
+${text.substring(0, 20000)}
+"""`;
+
+  const responseSchema = {
+    type: 'object',
+    properties: {
+      fullName: { type: 'string' },
+      headline: { type: 'string' },
+      summary: { type: 'string' },
+      skills: { type: 'array', items: { type: 'string' } },
+      experience: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            title: { type: 'string' },
+            company: { type: 'string' },
+            location: { type: 'string' },
+            startDate: { type: 'string' },
+            endDate: { type: 'string', nullable: true },
+            description: { type: 'string' },
+            skills: { type: 'array', items: { type: 'string' } },
+            achievements: { type: 'array', items: { type: 'string' } },
+            technologies: { type: 'array', items: { type: 'string' } },
+          },
+          required: ['title', 'company', 'startDate', 'description'],
+        },
+      },
+      education: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            type: { type: 'string', enum: ['degree', 'certification', 'bootcamp', 'course'] },
+            degree: { type: 'string' },
+            institution: { type: 'string' },
+            field: { type: 'string' },
+            location: { type: 'string' },
+            startDate: { type: 'string' },
+            endDate: { type: 'string', nullable: true },
+            gpa: { type: 'string', nullable: true },
+            honors: { type: 'string', nullable: true },
+            relevantCoursework: { type: 'array', items: { type: 'string' } },
+            status: { type: 'string', enum: ['completed', 'in-progress', 'expected'] },
+          },
+          required: ['degree', 'institution', 'startDate'],
+        },
+      },
+      languages: { type: 'array', items: { type: 'string' } },
+      location: { type: 'string' },
+      email: { type: 'string', nullable: true },
+      phone: { type: 'string', nullable: true },
+    },
+    required: ['fullName', 'headline', 'summary', 'skills', 'experience', 'education', 'languages', 'location'],
+  };
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 4096,
+        responseMimeType: 'application/json',
+        responseSchema,
+      },
+    }),
+    signal: AbortSignal.timeout(60000),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Gemini API error ${response.status}: ${errText}`);
+  }
+
+  const data = await response.json();
+  let contentText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!contentText) {
+    throw new Error('Respuesta vacía de Gemini');
+  }
+
+  // Log para debug
+  console.log('[Gemini] Raw response length:', contentText.length);
+  console.log('[Gemini] Raw response preview:', contentText.substring(0, 200));
+
+  // Intentar parsear el JSON, manejando errores comunes
+  let parsed;
+  try {
+    parsed = JSON.parse(contentText);
+  } catch (parseError) {
+    console.warn('[Gemini] JSON parse error, attempting to fix:', parseError.message);
+    
+    // Intentar extraer JSON de markdown code blocks
+    const jsonMatch = contentText.match(/```json\s*([\s\S]*?)\s*```/);
+    if (jsonMatch) {
+      contentText = jsonMatch[1].trim();
+    } else {
+      // Intentar encontrar JSON entre llaves
+      const braceMatch = contentText.match(/\{[\s\S]*\}/);
+      if (braceMatch) {
+        contentText = braceMatch[0];
+      }
+    }
+    
+    // Intentar reparar JSON truncado (comillas sin cerrar, etc.)
+    contentText = attemptToFixJson(contentText);
+    
+    try {
+      parsed = JSON.parse(contentText);
+    } catch (finalError) {
+      console.error('[Gemini] Failed to parse JSON after fix attempts:', contentText.substring(0, 500));
+      throw new Error(`JSON parse error: ${finalError.message}`);
+    }
+  }
+  
+  return normalizeGeminiProfile(parsed, fileName);
+}
+
+/** Attempt to fix common JSON errors */
+function attemptToFixJson(jsonString) {
+  let fixed = jsonString.trim();
+  
+  // Remove trailing commas in arrays and objects (handle multiple cases)
+  // Case 1: ,] or , }
+  fixed = fixed.replace(/,\s*\]/g, ']');
+  // Case 2: ,} or , }
+  fixed = fixed.replace(/,\s*\}/g, '}');
+  // Case 3: Multiple trailing commas
+  fixed = fixed.replace(/,+/g, ',');
+  // Case 4: Remove trailing commas before closing brackets again
+  fixed = fixed.replace(/,\s*([}\]])/g, '$1');
+  
+  // Remove trailing comma at the very end
+  fixed = fixed.replace(/,$/, '');
+  
+  // Close unclosed strings (simple heuristic)
+  const openQuotes = (fixed.match(/"/g) || []).length;
+  if (openQuotes % 2 !== 0) {
+    fixed += '"';
+  }
+  
+  // Ensure object is closed
+  const openBraces = (fixed.match(/\{/g) || []).length;
+  const closeBraces = (fixed.match(/\}/g) || []).length;
+  for (let i = 0; i < openBraces - closeBraces; i++) {
+    fixed += '}';
+  }
+  
+  // Ensure arrays are closed
+  const openBrackets = (fixed.match(/\[/g) || []).length;
+  const closeBrackets = (fixed.match(/\]/g) || []).length;
+  for (let i = 0; i < openBrackets - closeBrackets; i++) {
+    fixed += ']';
+  }
+  
+  return fixed;
+}
+
+function normalizeGeminiProfile(raw, fileName) {
+  const { randomUUID } = require('crypto');
+
+  const experience = (raw.experience || []).map((exp) => ({
+    title: exp.title || 'Posición',
+    company: exp.company || 'Empresa',
+    location: exp.location || '',
+    startDate: exp.startDate || '',
+    endDate: exp.endDate || undefined,
+    description: exp.description || '',
+    skills: Array.isArray(exp.skills) ? exp.skills : [],
+    achievements: Array.isArray(exp.achievements) ? exp.achievements : undefined,
+    technologies: Array.isArray(exp.technologies) ? exp.technologies : undefined,
+  }));
+
+  const education = (raw.education || []).map((edu) => ({
+    type: edu.type || 'degree',
+    degree: edu.degree || 'Título',
+    institution: edu.institution || 'Institución',
+    field: edu.field || '',
+    location: edu.location || '',
+    startDate: edu.startDate || '',
+    endDate: edu.endDate || undefined,
+    gpa: edu.gpa || undefined,
+    honors: edu.honors || undefined,
+    relevantCoursework: Array.isArray(edu.relevantCoursework) ? edu.relevantCoursework : undefined,
+    status: edu.status || 'completed',
+  }));
+
+  const skills = Array.isArray(raw.skills) ? raw.skills : [];
+  const languages = Array.isArray(raw.languages) ? raw.languages : ['Español'];
+
+  const profile = {
+    id: randomUUID ? randomUUID() : Math.random().toString(36).slice(2),
+    fullName: raw.fullName || 'Usuario',
+    headline: raw.headline || 'Profesional',
+    summary: raw.summary || `Profesional con experiencia en ${skills.slice(0, 5).join(', ')}.`,
+    skills,
+    experience,
+    education,
+    languages,
+    location: raw.location || '',
+    email: raw.email || undefined,
+    phone: raw.phone || undefined,
+    cvFileName: fileName || 'CV',
+    cvUploadedAt: new Date(),
+  };
+
+  // Generar extraction report básico
+  const warnings = [];
+  if (skills.length < 5) warnings.push('Solo se encontraron ' + skills.length + ' skills');
+  if (experience.length === 0) warnings.push('No se encontró sección de experiencia');
+  if (education.length === 0) warnings.push('No se encontró sección de educación');
+  if (!raw.summary || raw.summary.length < 50) warnings.push('Resumen muy corto o vacío');
+  if (!raw.email) warnings.push('No se encontró email');
+  if (!raw.phone) warnings.push('No se encontró teléfono');
+
+  const suggestions = [];
+  if (skills.length < 10) suggestions.push('Considera agregar más skills específicas en tu CV');
+  if (!raw.summary || raw.summary.length < 100) suggestions.push('Agrega un resumen profesional más detallado');
+
+  const completeness = Math.min(
+    100,
+    Math.round(
+      (skills.length > 0 ? 15 : 0) +
+      (experience.length > 0 ? 25 : 0) +
+      (education.length > 0 ? 15 : 0) +
+      (languages.length > 0 ? 10 : 0) +
+      (raw.summary ? 15 : 0) +
+      (raw.email && raw.phone ? 20 : raw.email || raw.phone ? 10 : 0)
+    )
+  );
+
+  profile.extractionReport = {
+    overallCompleteness: completeness,
+    timestamp: new Date(),
+    sections: {
+      skills: { found: skills.length, confidence: skills.length > 5 ? 0.95 : 0.6 },
+      experience: { found: experience.length, completeness: experience.length > 0 ? 0.95 : 0, achievements: experience.reduce((sum, e) => sum + (e.achievements?.length || 0), 0) },
+      education: { found: education.length, completeness: education.length > 0 ? 0.95 : 0, types: { degree: education.filter((e) => e.type === 'degree').length, certification: education.filter((e) => e.type === 'certification').length, bootcamp: education.filter((e) => e.type === 'bootcamp').length } },
+      languages: { found: languages.length, withLevels: false },
+      summary: { found: !!raw.summary, confidence: raw.summary && raw.summary.length > 50 ? 0.9 : 0.5, length: raw.summary?.length || 0 },
+      contact: { email: !!raw.email, phone: !!raw.phone, location: !!raw.location },
+    },
+    warnings,
+    suggestions,
+  };
+
+  return profile;
+}
+
 // ── Start ────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`  ✓ SmartJob API server en http://localhost:${PORT}`);
@@ -732,5 +1048,6 @@ app.listen(PORT, () => {
   console.log(`    GET  /api/skills/suggest?q=java`);
   console.log(`    GET  /api/categories`);
   console.log(`    GET  /api/health`);
+  console.log(`    POST /api/cv/parse`);
   console.log(`    POST /api/cache/clear\n`);
 });

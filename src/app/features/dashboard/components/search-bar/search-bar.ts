@@ -3,8 +3,6 @@ import { IonSearchbar, IonButton, IonIcon } from '@ionic/angular/standalone';
 import { FormsModule } from '@angular/forms';
 import { addIcons } from 'ionicons';
 import { searchOutline, optionsOutline } from 'ionicons/icons';
-import { debounceTime } from 'rxjs/operators';
-import { Subject } from 'rxjs';
 
 @Component({
   selector: 'app-search-bar',
@@ -18,7 +16,7 @@ import { Subject } from 'rxjs';
         (ionInput)="onSearchInput($event)"
         placeholder="Buscar empleos..."
         class="custom-searchbar"
-        debounce="300"
+        debounce="0"
       ></ion-searchbar>
       <ion-button
         fill="clear"
@@ -59,20 +57,12 @@ export class SearchBarComponent {
   @Output() queryChange = new EventEmitter<string>();
   @Output() openFilters = new EventEmitter<void>();
 
-  private searchSubject = new Subject<string>();
-
   constructor() {
-    this.searchSubject.pipe(
-      debounceTime(300)
-    ).subscribe(query => {
-      this.queryChange.emit(query);
-    });
-
     addIcons({ searchOutline, optionsOutline });
   }
 
   onSearchInput(event: any) {
     const query = event.target.value || '';
-    this.searchSubject.next(query);
+    this.queryChange.emit(query);
   }
 }
