@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, ViewChild } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import {
   IonList,
   IonContent,
@@ -9,6 +9,7 @@ import {
   IonIcon
 } from '@ionic/angular/standalone';
 import { CommonModule } from '@angular/common';
+import { ScrollingModule } from '@angular/cdk/scrolling';
 import { Job } from '../../../../core/models/job.model';
 import { JobCardComponent } from '../job-card/job-card';
 import { addIcons } from 'ionicons';
@@ -17,6 +18,7 @@ import { documentTextOutline } from 'ionicons/icons';
 @Component({
   selector: 'app-jobs-list',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     IonList,
     IonContent,
@@ -26,7 +28,8 @@ import { documentTextOutline } from 'ionicons/icons';
     IonCardContent,
     IonIcon,
     CommonModule,
-    JobCardComponent
+    JobCardComponent,
+    ScrollingModule
   ],
   template: `
     <div class="jobs-list-container">
@@ -46,19 +49,21 @@ import { documentTextOutline } from 'ionicons/icons';
           </ion-card>
         </div>
       } @else {
-        <ion-list class="jobs-list" [inset]="true">
-          @for (job of jobs; track job.id; let i = $index) {
-            <div class="job-item" [style.animation-delay]="i * 50 + 'ms'">
-              <app-job-card
-                [job]="job"
-                [userSkills]="userSkills"
-                (save)="jobSave.emit($event)"
-                (dismiss)="jobDismiss.emit($event)"
-                (apply)="jobApply.emit($event)"
-              ></app-job-card>
-            </div>
-          }
-        </ion-list>
+        <cdk-virtual-scroll-viewport class="jobs-list-viewport" [itemSize]="jobItemHeight">
+          <div class="jobs-list">
+            @for (job of jobs; track job.id; let i = $index) {
+              <div class="job-item" [style.animation-delay]="i * 50 + 'ms'">
+                <app-job-card
+                  [job]="job"
+                  [userSkills]="userSkills"
+                  (save)="jobSave.emit($event)"
+                  (dismiss)="jobDismiss.emit($event)"
+                  (apply)="jobApply.emit($event)"
+                ></app-job-card>
+              </div>
+            }
+          </div>
+        </cdk-virtual-scroll-viewport>
 
         @if (hasMore && !isLoading) {
           <div class="load-more-container">
@@ -76,6 +81,19 @@ import { documentTextOutline } from 'ionicons/icons';
       flex-direction: column;
       gap: 8px;
       padding: 8px;
+      height: 100%;
+    }
+
+    .jobs-list-viewport {
+      flex: 1;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .jobs-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
 
     .loading-state {
@@ -190,6 +208,8 @@ export class JobsListComponent {
   @Output() jobDismiss = new EventEmitter<string>();
   @Output() jobApply = new EventEmitter<string>();
   @Output() loadMore = new EventEmitter<void>();
+
+  jobItemHeight = 320; // Approximate height of a job card in pixels
 
   constructor() {
     addIcons({ documentTextOutline });

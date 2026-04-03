@@ -7,6 +7,7 @@ import { CvParserService } from './cv-parser.service';
 export class ProfileService {
   private readonly cvParser = inject(CvParserService);
   private readonly STORAGE_KEY = 'smartjob_profile';
+  private parserWorker: Worker | null = null;
 
   private readonly _profile = signal<UserProfile | null>(null);
   private readonly _isLoading = signal(false);
@@ -22,6 +23,22 @@ export class ProfileService {
   constructor() {
     // Load profile from localStorage on init
     this.loadProfileFromStorage();
+    // Initialize Web Worker if supported
+    this.initializeWorker();
+  }
+
+  private initializeWorker(): void {
+    try {
+      if (typeof Worker !== 'undefined') {
+        this.parserWorker = new Worker(
+          new URL('./cv-parser.worker', import.meta.url),
+          { type: 'module' }
+        );
+      }
+    } catch (err) {
+      console.warn('[ProfileService] Web Worker initialization failed, falling back to main thread:', err);
+      this.parserWorker = null;
+    }
   }
 
   readonly profileCompleteness = computed(() => {
@@ -49,8 +66,10 @@ export class ProfileService {
         await this.saveToNativeFs(file);
       }
 
-      // Parse the CV using real PDF text extraction
-      const profile = await this.cvParser.parseFile(file);
+      // Parse the CV using Web Worker if available, otherwise fallback to main thread
+      const profile = this.parserWorker
+        ? await this.parseWithWorker(file)
+        : await this.cvParser.parseFile(file);
 
       console.log('[ProfileService] Parsed profile:', profile);
       console.log('[ProfileService] Skills found:', profile.skills);
@@ -67,6 +86,45 @@ export class ProfileService {
     } finally {
       this._isLoading.set(false);
     }
+  }
+
+  private parseWithWorker(file: File): Promise<UserProfile> {
+    return new Promise((resolve, reject) => {
+      if (!this.parserWorker) {
+        reject(new Error('Web Worker not available'));
+        return;
+      }
+
+      const handleMessage = ({ data }: MessageEvent) => {
+        this.parserWorker!.removeEventListener('message', handleMessage);
+        this.parserWorker!.removeEventListener('error', handleError);
+
+        if (data.success) {
+          resolve(data.data);
+        } else {
+          reject(new Error(data.error));
+        }
+      };
+
+      const handleError = (err: ErrorEvent) => {
+        this.parserWorker!.removeEventListener('message', handleMessage);
+        this.parserWorker!.removeEventListener('error', handleError);
+        reject(new Error(`Web Worker error: ${err.message}`));
+      };
+
+      this.parserWorker.addEventListener('message', handleMessage);
+      this.parserWorker.addEventListener('error', handleError);
+
+      file.arrayBuffer().then(buffer => {
+        this.parserWorker!.postMessage({
+          file: {
+            data: buffer,
+            name: file.name,
+            type: file.type
+          }
+        });
+      }).catch(reject);
+    });
   }
 
   updateProfile(partial: Partial<UserProfile>): void {
