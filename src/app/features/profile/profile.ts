@@ -85,8 +85,10 @@ import { EditProfileComponent } from './components/edit-profile/edit-profile';
         <div class="profile-hero">
           <!-- Avatar -->
           <div class="avatar-container">
-            <div class="avatar">
-              {{ profile.fullName.charAt(0).toUpperCase() }}
+            <div class="avatar" [style.background-image]="profile.avatar ? 'url(' + profile.avatar + ')' : 'linear-gradient(135deg, var(--sj-primary) 0%, var(--sj-primary-dark) 100%)'">
+              @if (!profile.avatar) {
+                {{ profile.fullName.charAt(0).toUpperCase() }}
+              }
               <div class="avatar-status"></div>
             </div>
             <button class="edit-avatar-btn" (click)="changeAvatar()">
@@ -374,6 +376,8 @@ import { EditProfileComponent } from './components/edit-profile/edit-profile';
       height: 100px;
       border-radius: 50%;
       background: linear-gradient(135deg, var(--sj-primary-soft) 0%, #a7f3d0 100%);
+      background-size: cover;
+      background-position: center;
       color: var(--sj-primary-dark);
       display: flex;
       align-items: center;
@@ -1065,9 +1069,14 @@ Generado con SmartJob Agent - Tu buscador de empleos inteligente
         source: CameraSource.Camera,
       });
 
-      // In production: Upload image to server
-      this.showToast('Foto capturada (no implementado guardar)', 'success');
-      console.log('Photo taken:', image);
+      if (image.dataUrl) {
+        const profile = this.profileService.profile();
+        if (profile) {
+          profile.avatar = image.dataUrl;
+          this.profileService.updateProfile(profile);
+          await this.showToast('✨ Foto actualizada correctamente', 'success');
+        }
+      }
     } catch (err) {
       this.showToast('Error al capturar foto', 'danger');
     }
@@ -1082,9 +1091,14 @@ Generado con SmartJob Agent - Tu buscador de empleos inteligente
         source: CameraSource.Photos,
       });
 
-      // In production: Upload image to server
-      this.showToast('Foto seleccionada (no implementado guardar)', 'success');
-      console.log('Photo selected:', image);
+      if (image.dataUrl) {
+        const profile = this.profileService.profile();
+        if (profile) {
+          profile.avatar = image.dataUrl;
+          this.profileService.updateProfile(profile);
+          await this.showToast('✨ Foto actualizada correctamente', 'success');
+        }
+      }
     } catch (err) {
       this.showToast('Error al seleccionar foto', 'danger');
     }

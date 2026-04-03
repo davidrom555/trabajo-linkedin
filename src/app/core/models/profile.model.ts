@@ -12,6 +12,7 @@ export interface UserProfile {
   phone?: string;
   cvFileName?: string;
   cvUploadedAt?: Date;
+  avatar?: string; // Base64 encoded image
 }
 
 export interface Experience {

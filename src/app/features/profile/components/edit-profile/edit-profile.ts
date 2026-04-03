@@ -208,6 +208,7 @@ export class EditProfileComponent {
     languages: [],
     cvUploadedAt: new Date(),
     cvFileName: '',
+    avatar: '',
   };
 
   constructor() {
