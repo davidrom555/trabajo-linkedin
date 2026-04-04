@@ -44,28 +44,58 @@ jobs:
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
           xcodebuild -version
 
+      - name: Check project structure
+        run: |
+          ls -la ios/App/
+          ls -la ios/App/*.xcodeproj ios/App/*.xcworkspace 2>/dev/null || echo "No workspace found"
+
       - name: Build for iOS
         run: |
           cd ios/App
-          xcodebuild clean build \
-            -workspace App.xcworkspace \
-            -scheme App \
-            -configuration Release \
-            -derivedDataPath build \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO
+          # Try xcworkspace first, fallback to xcodeproj
+          if [ -d "App.xcworkspace" ]; then
+            echo "Using App.xcworkspace..."
+            xcodebuild clean build \
+              -workspace App.xcworkspace \
+              -scheme App \
+              -configuration Release \
+              -derivedDataPath build \
+              CODE_SIGN_IDENTITY="" \
+              CODE_SIGNING_REQUIRED=NO
+          else
+            echo "Using App.xcodeproj..."
+            xcodebuild clean build \
+              -project App.xcodeproj \
+              -scheme App \
+              -configuration Release \
+              -derivedDataPath build \
+              CODE_SIGN_IDENTITY="" \
+              CODE_SIGNING_REQUIRED=NO
+          fi
         continue-on-error: true
 
       - name: Archive
         run: |
           cd ios/App
-          xcodebuild archive \
-            -workspace App.xcworkspace \
-            -scheme App \
-            -configuration Release \
-            -archivePath ./build/App.xcarchive \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO
+          if [ -d "App.xcworkspace" ]; then
+            echo "Archiving from workspace..."
+            xcodebuild archive \
+              -workspace App.xcworkspace \
+              -scheme App \
+              -configuration Release \
+              -archivePath ./build/App.xcarchive \
+              CODE_SIGN_IDENTITY="" \
+              CODE_SIGNING_REQUIRED=NO
+          else
+            echo "Archiving from project..."
+            xcodebuild archive \
+              -project App.xcodeproj \
+              -scheme App \
+              -configuration Release \
+              -archivePath ./build/App.xcarchive \
+              CODE_SIGN_IDENTITY="" \
+              CODE_SIGNING_REQUIRED=NO
+          fi
         continue-on-error: true
 
       - name: Create IPA directory
