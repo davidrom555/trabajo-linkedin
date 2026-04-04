@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">RapidWork</string>
-    <string name="title_activity_main">RapidWork</string>
+    <string name="app_name">FastWork</string>
+    <string name="title_activity_main">FastWork</string>
     <string name="package_name">com.rapidwork.app</string>
     <string name="custom_url_scheme">com.rapidwork.app</string>
 </resources>

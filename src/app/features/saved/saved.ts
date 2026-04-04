@@ -30,8 +30,8 @@ import { EmptyStateComponent } from '../dashboard/components/empty-state/empty-s
       <div class="header-gradient">
         <ion-toolbar class="toolbar-transparent">
           <ion-title class="app-title">
-            <img src="icon.png" alt="RapidWork" class="header-logo">
-            RapidWork
+            <img src="icon.png" alt="FastWork" class="header-logo">
+            FastWork
           </ion-title>
         </ion-toolbar>
       </div>

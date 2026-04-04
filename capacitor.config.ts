@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.rapidwork.app',
-  appName: 'RapidWork',
+  appName: 'FastWork',
   webDir: 'dist/trabajo-linkedin/browser'
 };
 
