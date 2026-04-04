@@ -49,8 +49,27 @@ export class SearchService {
 
       console.log('[SearchService] ✓ Jobs obtenidos:', jobs.length);
 
-      // 3. Aplicar filtro de fecha client-side
+      // 3. Aplicar filtro por contenido del puesto
       let filteredJobs = jobs;
+      const searchQuery = query.trim().toLowerCase();
+      if (searchQuery && searchQuery !== 'developer') {
+        filteredJobs = filteredJobs.filter(job => {
+          const text = [
+            job.title,
+            job.company,
+            job.description,
+            job.location,
+            Array.isArray(job.requirements) ? job.requirements.join(' ') : job.requirements,
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
+          return text.includes(searchQuery);
+        });
+        console.log('[SearchService] Filtro contenido aplicado:', { before: jobs.length, after: filteredJobs.length, query: searchQuery });
+      }
+
+      // 4. Aplicar filtro de fecha client-side
       if (timeFilter !== 'all') {
         const cutoffMs: Record<TimeFilter, number> = {
           '24h': 24 * 60 * 60 * 1000,
@@ -60,17 +79,17 @@ export class SearchService {
           'all': Infinity,
         };
         const now = Date.now();
-        filteredJobs = jobs.filter(job => {
+        filteredJobs = filteredJobs.filter(job => {
           const posted = typeof job.postedAt === 'string' ? new Date(job.postedAt) : job.postedAt;
           return posted && !isNaN(posted.getTime()) && (now - posted.getTime()) <= cutoffMs[timeFilter];
         });
         console.log('[SearchService] Filtro fecha aplicado:', { before: jobs.length, after: filteredJobs.length, timeFilter });
       }
 
-      // 4. Establecer datos en SearchService
+      // 5. Establecer datos en SearchService
       this._jobs.set(filteredJobs);
 
-      // 5. Sincronizar con JobService para que savedJobs() funcione correctamente
+      // 6. Sincronizar con JobService para que savedJobs() funcione correctamente
       this.jobService.syncJobs(filteredJobs);
     } catch (error: any) {
       console.error('[SearchService] ✗ Error:', error.message);

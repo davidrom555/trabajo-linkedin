@@ -48,8 +48,8 @@ import { SearchBarComponent } from './components/search-bar-new/search-bar.compo
       <div class="header-gradient">
         <ion-toolbar class="toolbar-transparent">
           <ion-title class="app-title">
-            <img src="icon.png" alt="RapidJob" class="header-logo">
-            RapidJob
+            <img src="icon.png" alt="RapidWork" class="header-logo">
+            RapidWork
           </ion-title>
         </ion-toolbar>
       </div>

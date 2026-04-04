@@ -1,4 +1,4 @@
-import { Component, input, output, computed, inject } from '@angular/core';
+import { Component, input, output, computed, inject, signal } from '@angular/core';
 import {
   IonCard,
   IonCardContent,
@@ -26,6 +26,7 @@ import {
   checkmarkCircleOutline,
   shareOutline,
   copyOutline,
+  checkmarkOutline,
   trendingUpOutline,
  briefcaseOutline,
 } from 'ionicons/icons';
@@ -178,8 +179,8 @@ import { MatchScoreRingComponent } from '../match-score-ring/match-score-ring';
                 (click)="onCopyLink($event)"
                 type="button"
               >
-                <ion-icon name="copy-outline"></ion-icon>
-                <span>Copiar</span>
+                <ion-icon [name]="copied() ? 'checkmark-outline' : 'copy-outline'"></ion-icon>
+                <span>{{ copied() ? 'Copiado' : 'Copiar' }}</span>
               </button>
 
               <button
@@ -579,6 +580,7 @@ export class JobCardComponent {
       'checkmark-circle-outline': checkmarkCircleOutline,
       'share-outline': shareOutline,
       'copy-outline': copyOutline,
+      'checkmark-outline': checkmarkOutline,
       'trending-up-outline': trendingUpOutline,
       'briefcase-outline': briefcaseOutline,
     });
@@ -625,6 +627,9 @@ export class JobCardComponent {
   readonly visibleRequirements = computed(() => {
     return this.job().requirements.slice(0, 5);
   });
+
+  private copiedSignal = signal(false);
+  readonly copied = this.copiedSignal.asReadonly();
 
   isMatchingSkill(skill: string): boolean {
     return false;
@@ -676,6 +681,8 @@ export class JobCardComponent {
     navigator.clipboard.writeText(this.job().linkedinUrl).then(
       () => {
         console.log('[JobCard] URL copied successfully');
+        this.copiedSignal.set(true);
+        setTimeout(() => this.copiedSignal.set(false), 2000);
         this.showToast('📋 Enlace copiado', 'success');
       },
       (error) => {
