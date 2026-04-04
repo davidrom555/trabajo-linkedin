@@ -2,10 +2,11 @@ import { Component, Output, EventEmitter, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonIcon } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { searchOutline, closeOutline, locationOutline } from 'ionicons/icons';
+import { searchOutline, closeOutline, locationOutline, timeOutline } from 'ionicons/icons';
 import { JobService } from '../../../../core/services/job.service';
 import { CountriesService } from '../../../../core/services/countries.service';
 import { LocationPickerModalComponent } from '../location-picker-modal/location-picker-modal.component';
+import { TimeFilter } from '../../../../core/models/job.model';
 
 @Component({
   selector: 'app-search-bar',
@@ -19,9 +20,10 @@ import { LocationPickerModalComponent } from '../location-picker-modal/location-
         <input
           #searchInput
           type="text"
+          [value]="query"
           placeholder="Buscar: developer, angular..."
           class="search-input"
-          (keyup)="onQueryChange($event)"
+          (input)="onQueryChange($event)"
           (keyup.enter)="onSearch()"
         />
         <button
@@ -46,6 +48,20 @@ import { LocationPickerModalComponent } from '../location-picker-modal/location-
             loading="lazy"
             onerror="this.style.display='none'"
           />
+        }
+      </div>
+
+      <!-- Time Filter -->
+      <div class="time-filter">
+        @for (t of timeFilters; track t.value) {
+          <button
+            type="button"
+            class="time-chip"
+            [class.active]="timeFilter === t.value"
+            (click)="setTimeFilter(t.value)"
+          >
+            {{ t.label }}
+          </button>
         }
       </div>
     </div>
@@ -175,20 +191,60 @@ import { LocationPickerModalComponent } from '../location-picker-modal/location-
       flex-shrink: 0;
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     }
+
+    .time-filter {
+      display: flex;
+      gap: 8px;
+      padding: 0 20px 16px;
+      background: var(--sj-surface);
+      overflow-x: auto;
+    }
+
+    .time-chip {
+      padding: 8px 16px;
+      border-radius: 20px;
+      border: 1.5px solid var(--sj-border);
+      background: white;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--sj-text-secondary);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+
+    .time-chip.active {
+      background: var(--sj-primary);
+      border-color: var(--sj-primary);
+      color: white;
+    }
+
+    .time-chip:hover:not(.active) {
+      border-color: var(--sj-primary);
+      color: var(--sj-primary);
+    }
   `
 })
 export class SearchBarComponent {
   readonly jobService = inject(JobService);
   readonly countriesService = inject(CountriesService);
 
-  @Output() search = new EventEmitter<{ query: string; location: string }>();
+  @Output() search = new EventEmitter<{ query: string; location: string; timeFilter: TimeFilter }>();
 
   query = '';
   location = '';
+  timeFilter: TimeFilter = 'all';
   isLocationModalOpen = false;
 
+  readonly timeFilters: { value: TimeFilter; label: string }[] = [
+    { value: '24h', label: 'Hoy' },
+    { value: '7d', label: '7 días' },
+    { value: '30d', label: '30 días' },
+    { value: 'all', label: 'Todo' },
+  ];
+
   constructor() {
-    addIcons({ searchOutline, closeOutline, locationOutline });
+    addIcons({ searchOutline, closeOutline, locationOutline, timeOutline });
     this.countriesService.loadCountries();
   }
 
@@ -200,16 +256,22 @@ export class SearchBarComponent {
     // Si no hay query, usar 'developer' por defecto
     const query = this.query.trim() || 'developer';
     const location = this.location;
+    const timeFilter = this.timeFilter;
 
-    console.log('[SearchBar] onSearch:', { query, location });
-    this.search.emit({ query, location });
+    console.log('[SearchBar] onSearch:', { query, location, timeFilter });
+    this.search.emit({ query, location, timeFilter });
   }
 
   clearSearch(): void {
     this.query = '';
-    // Mantener la ubicación seleccionada cuando limpias la búsqueda
-    console.log('[SearchBar] clearSearch with location:', this.location);
-    this.search.emit({ query: 'developer', location: this.location });
+    // Mantener la ubicación y filtro de tiempo seleccionados
+    console.log('[SearchBar] clearSearch:', { location: this.location, timeFilter: this.timeFilter });
+    this.search.emit({ query: 'developer', location: this.location, timeFilter: this.timeFilter });
+  }
+
+  setTimeFilter(filter: TimeFilter): void {
+    this.timeFilter = filter;
+    this.onSearch();
   }
 
   showLocationModal(): void {
@@ -221,11 +283,12 @@ export class SearchBarComponent {
   }
 
   selectLocation(code: string): void {
-    this.location = code;
+    const country = this.countriesService.getCountryByCode(code);
+    this.location = country?.name || code;
     this.closeLocationModal();
 
     // Buscar automáticamente con la nueva ubicación
-    console.log('[SearchBar] selectLocation:', { code, query: this.query });
+    console.log('[SearchBar] selectLocation:', { name: this.location, query: this.query });
     this.onSearch();
   }
 
@@ -234,7 +297,7 @@ export class SearchBarComponent {
       return 'Todo el mundo';
     }
 
-    const country = this.countriesService.getCountryByCode(this.location);
+    const country = this.countriesService.getCountryByName(this.location);
     if (country) {
       return country.name;
     }
@@ -243,7 +306,7 @@ export class SearchBarComponent {
       'Remote': 'Remoto',
     };
 
-    return customCountries[this.location] || 'Todo el mundo';
+    return customCountries[this.location] || this.location || 'Todo el mundo';
   }
 
   getLocationDisplayName(): string {
@@ -255,7 +318,7 @@ export class SearchBarComponent {
       return '';
     }
 
-    const country = this.countriesService.getCountryByCode(this.location);
+    const country = this.countriesService.getCountryByName(this.location);
     if (country) {
       return country.flagUrl;
     }

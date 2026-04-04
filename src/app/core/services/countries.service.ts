@@ -122,6 +122,10 @@ export class CountriesService {
     return this._countries().find((c) => c.code === code.toUpperCase());
   }
 
+  getCountryByName(name: string): Country | undefined {
+    return this._countries().find((c) => c.name.toLowerCase() === name.toLowerCase());
+  }
+
   searchCountries(query: string): Country[] {
     const search = query.toLowerCase();
     return this._countries().filter(

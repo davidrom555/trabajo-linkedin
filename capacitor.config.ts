@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.linkedfast.app',
-  appName: 'LinkedFast',
+  appId: 'com.rapidjob.app',
+  appName: 'RapidJob',
   webDir: 'dist/trabajo-linkedin/browser'
 };
 

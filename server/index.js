@@ -174,7 +174,7 @@ function getCountryCode(location) {
 // LINKEDIN JOBS - RapidAPI + Scraper directo
 // ═══════════════════════════════════════════════════════════
 
-async function searchLinkedInJobs(query, location, page = 1) {
+async function searchLinkedInJobs(query, location, page = 1, geoId = null) {
   // 1. Intentar RapidAPI primero si está configurada
   if (hasRapidApi) {
     try {
@@ -188,8 +188,8 @@ async function searchLinkedInJobs(query, location, page = 1) {
     }
   }
 
-  // 2. Fallback: scraper directo de LinkedIn Jobs
-  return searchLinkedInScraper(query, location, page);
+  // 2. Fallback: scraper directo de LinkedIn Jobs (usar geoId si está disponible)
+  return searchLinkedInScraper(query, location, page, geoId);
 }
 
 async function searchLinkedInRapidApi(query, location, page = 1) {
@@ -227,10 +227,11 @@ async function searchLinkedInRapidApi(query, location, page = 1) {
   return jobs.map(normalizeLinkedInJob);
 }
 
-async function searchLinkedInScraper(query, location, page = 1) {
+async function searchLinkedInScraper(query, location, page = 1, geoId = null) {
   const start = (page - 1) * 25;
   const locParam = location ? `&location=${encodeURIComponent(location)}` : '';
-  const url = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${encodeURIComponent(query)}${locParam}&start=${start}`;
+  const geoParam = geoId ? `&geoId=${geoId}` : '';
+  const url = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${encodeURIComponent(query)}${locParam}${geoParam}&start=${start}`;
 
   console.log(`[LinkedIn Scraper] Searching: "${query}" in "${location || 'Any'}" (start ${start})`);
 
@@ -378,6 +379,53 @@ function normalizeLinkedInJob(raw) {
 // RUTAS
 // ═══════════════════════════════════════════════════════════
 
+// Mapeo de códigos ISO a nombres de país para LinkedIn
+const ISO_COUNTRY_MAP = {
+  'ES': 'Spain', 'US': 'United States', 'GB': 'United Kingdom',
+  'DE': 'Germany', 'FR': 'France', 'IT': 'Italy', 'PT': 'Portugal',
+  'NL': 'Netherlands', 'CA': 'Canada', 'MX': 'Mexico', 'AR': 'Argentina',
+  'BR': 'Brazil', 'CL': 'Chile', 'CO': 'Colombia', 'AU': 'Australia',
+  'IN': 'India', 'JP': 'Japan', 'SG': 'Singapore', 'IE': 'Ireland',
+  'CH': 'Switzerland', 'AT': 'Austria', 'BE': 'Belgium', 'SE': 'Sweden',
+  'NO': 'Norway', 'DK': 'Denmark', 'FI': 'Finland', 'PL': 'Poland',
+  'CZ': 'Czech Republic', 'HU': 'Hungary', 'RO': 'Romania', 'GR': 'Greece',
+  'TR': 'Turkey', 'RU': 'Russia', 'CN': 'China', 'KR': 'South Korea',
+  'TW': 'Taiwan', 'HK': 'Hong Kong', 'TH': 'Thailand', 'VN': 'Vietnam',
+  'ID': 'Indonesia', 'MY': 'Malaysia', 'PH': 'Philippines', 'NZ': 'New Zealand',
+  'ZA': 'South Africa', 'AE': 'United Arab Emirates', 'IL': 'Israel',
+  'SA': 'Saudi Arabia', 'EG': 'Egypt', 'NG': 'Nigeria', 'KE': 'Kenya',
+  'PE': 'Peru', 'VE': 'Venezuela', 'EC': 'Ecuador', 'UY': 'Uruguay',
+  'PY': 'Paraguay', 'BO': 'Bolivia', 'CR': 'Costa Rica', 'PA': 'Panama',
+  'GT': 'Guatemala', 'HN': 'Honduras', 'SV': 'El Salvador', 'NI': 'Nicaragua',
+  'CU': 'Cuba', 'DO': 'Dominican Republic', 'JM': 'Jamaica',
+};
+
+// geoIds de LinkedIn para filtrado preciso por país en el scraper
+const LINKEDIN_GEOID_MAP = {
+  'ES': '105646813', 'US': '103644278', 'GB': '101165590',
+  'DE': '101282230', 'FR': '105015875', 'IT': '103350119',
+  'PT': '100364837', 'NL': '102890719', 'CA': '101174742',
+  'MX': '103056806', 'AR': '100446943', 'BR': '106057199',
+  'CL': '104621616', 'CO': '100876405', 'AU': '101452733',
+  'IN': '102713980', 'JP': '101355337', 'SG': '102454443',
+  'IE': '104994100', 'CH': '106693272', 'AT': '104341204',
+  'BE': '100565514', 'SE': '105117694', 'NO': '103819153',
+  'DK': '104514075', 'FI': '100293109', 'PL': '105072130',
+  'CZ': '104508036', 'HU': '100900800', 'RO': '106670623',
+  'GR': '104677530', 'TR': '102105699', 'RU': '101728296',
+  'CN': '102890883', 'KR': '105149562', 'TW': '104222089',
+  'HK': '103291352', 'TH': '105924831', 'VN': '104195837',
+  'ID': '102478331', 'MY': '106808866', 'PH': '103121894',
+  'NZ': '105490917', 'ZA': '104130737', 'AE': '104305776',
+  'IL': '101490751', 'SA': '100459316', 'EG': '106155005',
+  'NG': '105365761', 'KE': '100799100', 'PE': '102927786',
+  'VE': '101490751', 'EC': '106155116', 'UY': '106932038',
+  'PY': '104065328', 'BO': '104379274', 'CR': '101496778',
+  'PA': '101907273', 'GT': '100877805', 'HN': '105704424',
+  'SV': '106121042', 'NI': '103824890', 'CU': '106981808',
+  'DO': '106178322', 'JM': '106069890',
+};
+
 /**
  * GET /api/jobs/search?q=angular&location=Madrid&page=1&limit=25&sources=all
  * 
@@ -385,15 +433,41 @@ function normalizeLinkedInJob(raw) {
  */
 app.get('/api/jobs/search', async (req, res) => {
   const query = req.query.q || 'developer';
-  const location = req.query.location || '';
+  let location = req.query.location || '';
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 25;
   const sources = req.query.sources || 'all';
 
-  console.log(`\n[/api/jobs/search] q="${query}" location="${location}" page=${page} sources=${sources}`);
+  const originalLocation = location;
+  let geoId = null;
 
-  // Verificar caché
-  const cacheKey = getCacheKey(query, location, page, sources);
+  // Mapa inverso: nombre de país → código ISO
+  const COUNTRY_TO_ISO_MAP = Object.fromEntries(
+    Object.entries(ISO_COUNTRY_MAP).map(([code, name]) => [name.toLowerCase(), code])
+  );
+
+  // Resolver geoId: si es código ISO de 2 letras, o si es nombre de país
+  if (location) {
+    if (location.length === 2) {
+      const upper = location.toUpperCase();
+      if (ISO_COUNTRY_MAP[upper]) {
+        location = ISO_COUNTRY_MAP[upper];
+      }
+      if (LINKEDIN_GEOID_MAP[upper]) {
+        geoId = LINKEDIN_GEOID_MAP[upper];
+      }
+    } else {
+      const isoCode = COUNTRY_TO_ISO_MAP[location.toLowerCase()];
+      if (isoCode && LINKEDIN_GEOID_MAP[isoCode]) {
+        geoId = LINKEDIN_GEOID_MAP[isoCode];
+      }
+    }
+  }
+
+  console.log(`\n[/api/jobs/search] q="${query}" location="${location}" geoId="${geoId || ''}" page=${page} sources=${sources}`);
+
+  // Verificar caché (incluir geoId en la clave si existe)
+  const cacheKey = getCacheKey(query, location + (geoId ? `_${geoId}` : ''), page, sources);
   const cached = getCached(cacheKey);
   if (cached && !req.query.nocache) {
     console.log(`[Cache] ✓ Retornando resultados en caché`);
@@ -426,14 +500,29 @@ app.get('/api/jobs/search', async (req, res) => {
     }
   }
 
-  // SOLO LinkedIn
-  await trySource('linkedin', () => searchLinkedInJobs(query, location, page));
+  // SOLO LinkedIn (pasar geoId para filtrado preciso)
+  await trySource('linkedin', () => searchLinkedInJobs(query, location, page, geoId));
 
   if (allJobs.length === 0 && errors.length > 0) {
     return res.status(503).json({ 
       error: 'LinkedIn API no disponible. Cuota mensual excedida o API key inválida.', 
       details: errors 
     });
+  }
+
+  // Filtro de ubicación: si se especificó un país, descartar jobs que no coincidan
+  if (originalLocation && originalLocation.length === 2) {
+    const countryName = ISO_COUNTRY_MAP[originalLocation.toUpperCase()];
+    if (countryName) {
+      const beforeFilter = allJobs.length;
+      allJobs = allJobs.filter((j) => {
+        const loc = (j.location || '').toLowerCase();
+        // Coincidir con el nombre en inglés o el código ISO
+        return loc.includes(countryName.toLowerCase()) ||
+               loc.includes(originalLocation.toLowerCase());
+      });
+      console.log(`[Location Filter] ${beforeFilter} → ${allJobs.length} jobs matching "${countryName}"`);
+    }
   }
 
   // Deduplicar por título + empresa

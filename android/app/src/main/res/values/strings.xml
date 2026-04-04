@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">LinkedFast</string>
-    <string name="title_activity_main">LinkedFast</string>
-    <string name="package_name">com.linkedfast.app</string>
-    <string name="custom_url_scheme">com.linkedfast.app</string>
+    <string name="app_name">RapidJob</string>
+    <string name="title_activity_main">RapidJob</string>
+    <string name="package_name">com.rapidjob.app</string>
+    <string name="custom_url_scheme">com.rapidjob.app</string>
 </resources>

@@ -21,6 +21,7 @@ import {
 
 import { SearchService } from '../../core/services/search.service';
 import { JobService } from '../../core/services/job.service';
+import { TimeFilter } from '../../core/models/job.model';
 import { JobsListComponent } from './components/jobs-list/jobs-list';
 import { SearchBarComponent } from './components/search-bar-new/search-bar.component';
 
@@ -47,8 +48,8 @@ import { SearchBarComponent } from './components/search-bar-new/search-bar.compo
       <div class="header-gradient">
         <ion-toolbar class="toolbar-transparent">
           <ion-title class="app-title">
-            <img src="icon.png" alt="LinkedFast" class="header-logo">
-            LinkedFast
+            <img src="icon.png" alt="RapidJob" class="header-logo">
+            RapidJob
           </ion-title>
         </ion-toolbar>
       </div>
@@ -223,9 +224,9 @@ export class DashboardPage implements OnInit {
   /**
    * Búsqueda principal
    */
-  async onSearch(params: { query: string; location: string }): Promise<void> {
+  async onSearch(params: { query: string; location: string; timeFilter: TimeFilter }): Promise<void> {
     console.log('[Dashboard] onSearch:', params);
-    await this.searchService.search(params.query, params.location);
+    await this.searchService.search(params.query, params.location, params.timeFilter);
     this.cdr.detectChanges();
   }
 
@@ -234,7 +235,7 @@ export class DashboardPage implements OnInit {
    */
   async onRefresh(event: CustomEvent): Promise<void> {
     const params = this.searchService.searchParams();
-    await this.searchService.search(params.query, params.location);
+    await this.searchService.search(params.query, params.location, params.timeFilter);
     this.cdr.detectChanges();
     (event.target as HTMLIonRefresherElement).complete();
     this.showToast('✨ Actualizado', 'success');

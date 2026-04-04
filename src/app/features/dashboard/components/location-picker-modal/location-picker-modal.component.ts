@@ -38,12 +38,12 @@ import { CountriesService, Country } from '../../../../core/services/countries.s
         <div class="global-option-fixed">
           <button
             class="location-item global-option"
-            [class.selected]="selectedLocation === ''"
+            [class.selected]="!selectedLocation"
             (click)="selectLocation('')"
           >
             <span class="flag">🌍</span>
             <span class="name">Todo el mundo</span>
-            <span *ngIf="selectedLocation === ''" class="checkmark">✓</span>
+            <span *ngIf="!selectedLocation" class="checkmark">✓</span>
           </button>
         </div>
 
@@ -373,6 +373,10 @@ export class LocationPickerModalComponent implements OnInit {
     this.locationSelected.emit(code);
     this.resetSearch();
     this.close();
+  }
+
+  isSelected(country: Country): boolean {
+    return country.code === this.selectedLocation || country.name === this.selectedLocation;
   }
 
   close(): void {

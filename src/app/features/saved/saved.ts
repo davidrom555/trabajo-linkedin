@@ -25,10 +25,16 @@ import { EmptyStateComponent } from '../dashboard/components/empty-state/empty-s
     EmptyStateComponent,
   ],
   template: `
+    <!-- Header -->
     <ion-header class="ion-no-border">
-      <ion-toolbar class="saved-toolbar">
-        <ion-title class="tw-font-bold tw-text-lg">Guardados</ion-title>
-      </ion-toolbar>
+      <div class="header-gradient">
+        <ion-toolbar class="toolbar-transparent">
+          <ion-title class="app-title">
+            <img src="icon.png" alt="RapidJob" class="header-logo">
+            RapidJob
+          </ion-title>
+        </ion-toolbar>
+      </div>
     </ion-header>
 
     <ion-content class="saved-content">
@@ -56,21 +62,46 @@ import { EmptyStateComponent } from '../dashboard/components/empty-state/empty-s
     </ion-content>
   `,
   styles: `
-    :host ::ng-deep ion-header {
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    .header-gradient {
+      background: linear-gradient(135deg, var(--sj-primary) 0%, var(--sj-primary-dark) 100%);
+      padding: 20px 0;
+      border-radius: 0 0 28px 28px;
+      box-shadow: 0 8px 32px rgba(10, 102, 194, 0.25),
+                  0 1px 0 rgba(255, 255, 255, 0.1) inset;
+      position: relative;
     }
 
-    .saved-toolbar {
-      --background: var(--sj-surface);
-      --color: var(--sj-text-primary);
+    .header-gradient::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 0%, transparent 100%);
+      border-radius: 0 0 28px 28px;
+      pointer-events: none;
+    }
+
+    .toolbar-transparent {
+      --background: transparent;
+      --color: white;
       --padding-start: 20px;
       --padding-end: 20px;
     }
 
-    .saved-toolbar ion-title {
-      font-size: 28px;
+    .app-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
       font-weight: 800;
+      font-size: 24px;
       letter-spacing: -0.5px;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .header-logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
     }
 
     .saved-content {
