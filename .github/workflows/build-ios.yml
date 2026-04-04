@@ -28,7 +28,11 @@ jobs:
         run: npm install --legacy-peer-deps --no-audit --no-fund
         continue-on-error: false
 
-      - name: Sync iOS
+      - name: Build Angular app
+        run: npm run build
+        continue-on-error: false
+
+      - name: Sync iOS (after build)
         run: npx cap sync ios
         continue-on-error: false
 
