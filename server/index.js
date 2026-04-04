@@ -12,8 +12,30 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 // CONFIGURACIÓN
 // ═══════════════════════════════════════════════════════════
 
+// Configuración CORS - permite múltiples orígenes
+const ALLOWED_ORIGINS = [
+  'http://localhost:4200',
+  'http://localhost:4201',
+  'http://127.0.0.1:4200',
+  'http://127.0.0.1:4201',
+  // Añade aquí tu dominio de producción:
+  // 'https://tu-dominio.com',
+  // 'https://www.tu-dominio.com',
+];
+
+// Permitir CORS dinámico para desarrollo, estático para producción
 app.use(cors({
-  origin: ['http://localhost:4200', 'http://localhost:4201', 'http://127.0.0.1:4200', 'http://127.0.0.1:4201'],
+  origin: (origin, callback) => {
+    // Permitir requests sin origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    if (ALLOWED_ORIGINS.includes(origin) || origin.includes('localhost')) {
+      callback(null, true);
+    } else {
+      console.warn(`[CORS] Origen no permitido: ${origin}`);
+      callback(null, true); // Permitir todos en desarrollo, cambiar a false en producción
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true

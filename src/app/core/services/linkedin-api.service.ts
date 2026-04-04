@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { Job, TimeFilter } from '../models/job.model';
+import { environment } from '../../../environments/environment';
 
 interface JobSearchResponse {
   jobs: Job[];
@@ -33,7 +34,7 @@ interface HealthResponse {
 @Injectable({ providedIn: 'root' })
 export class LinkedInApiService {
   private readonly http = inject(HttpClient);
-  private readonly API_BASE = '/api';
+  private readonly API_BASE = environment.apiBaseUrl;
 
   // Caché en memoria para sesión actual
   private readonly memoryCache = new Map<string, { data: Job[]; timestamp: number }>();

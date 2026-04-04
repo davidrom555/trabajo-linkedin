@@ -7,11 +7,16 @@
     "start:web": "ng serve --port 4201",
     "server": "node server/index.js",
     "build": "ng build",
+    "build:mobile": "ng build --configuration mobile",
     "watch": "ng build --watch --configuration development",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "test:ci": "vitest --run --coverage"
+    "test:ci": "vitest --run --coverage",
+    "sync:ios": "npm run build:mobile && npx cap sync ios",
+    "sync:android": "npm run build:mobile && npx cap sync android",
+    "open:ios": "npx cap open ios",
+    "open:android": "npx cap open android"
   },
   "private": true,
   "packageManager": "npm@11.6.2",

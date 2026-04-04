@@ -16,7 +16,9 @@
       "Bash(git add:*)",
       "Bash(git commit -m 'feat: start performance optimization phase:*)",
       "Bash(xargs grep:*)",
-      "Bash(python3 /tmp/update-parser.py)"
+      "Bash(python3 /tmp/update-parser.py)",
+      "Bash(chmod +x /tmp/build.sh)",
+      "Bash(/tmp/build.sh)"
     ]
   }
 }
