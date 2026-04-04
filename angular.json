@@ -82,7 +82,7 @@
               ]
             }
           },
-          "defaultConfiguration": "production"
+          "defaultConfiguration": "mobile"
         },
         "serve": {
           "builder": "@angular/build:dev-server",
