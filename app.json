@@ -20,5 +20,10 @@
   "android": {
     "package": "com.rapidwork.app",
     "versionCode": 1
+  },
+  "extra": {
+    "eas": {
+      "projectId": "1c53521c-4740-4ddc-9d0d-d2424d8745d7"
+    }
   }
 }
