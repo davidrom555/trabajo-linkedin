@@ -1,0 +1,67 @@
+name: Build iOS
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'preview'
+        type: choice
+        options:
+          - preview
+          - production
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Capacitor
+        run: npm install @capacitor/cli
+
+      - name: Sync iOS
+        run: npx cap sync ios
+
+      - name: Setup Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Build iOS
+        run: |
+          cd ios/App
+          xcodebuild build-for-testing \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release
+
+      - name: Archive
+        run: |
+          cd ios/App
+          xcodebuild archive \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -archivePath ./build/App.xcarchive
+
+      - name: Export IPA
+        run: |
+          cd ios/App
+          xcodebuild -exportArchive \
+            -archivePath ./build/App.xcarchive \
+            -exportOptionsPlist exportOptions.plist \
+            -exportPath ./build/ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v3
+        with:
+          name: App.ipa
+          path: ios/App/build/ipa/App.ipa
