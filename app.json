@@ -1,0 +1,24 @@
+{
+  "name": "RapidWork",
+  "slug": "rapidwork",
+  "version": "1.0.0",
+  "orientation": "portrait",
+  "icon": "./public/icon.png",
+  "userInterfaceStyle": "light",
+  "splash": {
+    "image": "./public/assets/splash/launch-1242x2208.png",
+    "resizeMode": "contain",
+    "backgroundColor": "#ffffff"
+  },
+  "assetBundlePatterns": [
+    "**/*"
+  ],
+  "ios": {
+    "bundleIdentifier": "com.rapidwork.app",
+    "buildNumber": "1.0.0"
+  },
+  "android": {
+    "package": "com.rapidwork.app",
+    "versionCode": 1
+  }
+}
