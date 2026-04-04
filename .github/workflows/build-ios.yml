@@ -105,6 +105,26 @@ jobs:
         run: |
           find ios/App/build -type f -name "*.xcarchive" -o -name "App.app" | head -20
 
+      - name: Create plist for export
+        run: |
+          cat > /tmp/exportOptions.plist << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>method</key>
+    <string>development</string>
+    <key>signingStyle</key>
+    <string>automatic</string>
+    <key>stripSwiftSymbols</key>
+    <true/>
+    <key>thinning</key>
+    <string>&lt;none&gt;</string>
+</dict>
+</plist>
+EOF
+        continue-on-error: false
+
       - name: Generate test IPA (fallback)
         run: |
           cd ios/App/build
@@ -112,13 +132,20 @@ jobs:
             echo "Archive found, attempting export..."
             xcodebuild -exportArchive \
               -archivePath App.xcarchive \
-              -exportOptionsPlist ../../exportOptions.plist \
-              -exportPath ipa
-          else
-            echo "Creating fallback IPA structure..."
+              -exportOptionsPlist /tmp/exportOptions.plist \
+              -exportPath ipa || echo "Export failed, using fallback..."
+          fi
+
+          # Fallback: create IPA manually if export failed or no archive
+          if [ ! -f "ipa/App.ipa" ]; then
+            echo "Creating fallback IPA..."
             mkdir -p ipa/Payload
-            cp -r build/Release/App.app ipa/Payload/ 2>/dev/null || echo "App not found"
-            cd ipa && zip -r App.ipa Payload && cd ../..
+            if [ -d "App.xcarchive/Products/Applications/App.app" ]; then
+              cp -r App.xcarchive/Products/Applications/App.app ipa/Payload/
+              cd ipa && zip -r App.ipa Payload && cd ../..
+            else
+              echo "WARNING: Could not find App.app in archive"
+            fi
           fi
         continue-on-error: true
 
