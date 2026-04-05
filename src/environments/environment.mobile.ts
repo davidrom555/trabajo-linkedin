@@ -5,7 +5,7 @@
  * una URL absoluta al backend. No puede usar rutas relativas como '/api'
  */
 
-const BACKEND_URL = 'https://abc-123.loca.lt/api';
+const BACKEND_URL = 'https://abc-123.loca.lt';
 
 export const environment = {
   production: true,
