@@ -64,6 +64,11 @@ import { TimeFilter } from '../../../../core/models/job.model';
           </button>
         }
       </div>
+
+      <!-- Search Button -->
+      <button class="search-button" (click)="onSearch()" type="button">
+        Buscar
+      </button>
     </div>
 
     <!-- Location Modal -->
@@ -222,6 +227,32 @@ import { TimeFilter } from '../../../../core/models/job.model';
     .time-chip:hover:not(.active) {
       border-color: var(--sj-primary);
       color: var(--sj-primary);
+    }
+
+    .search-button {
+      width: 100%;
+      padding: 14px 24px;
+      margin-top: 8px;
+      background: linear-gradient(135deg, var(--sj-primary) 0%, var(--sj-primary-dark) 100%);
+      color: white;
+      border: none;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+      letter-spacing: 0.5px;
+
+      &:hover {
+        box-shadow: 0 6px 20px rgba(5, 150, 105, 0.4);
+        transform: translateY(-2px);
+      }
+
+      &:active {
+        transform: translateY(0px);
+        box-shadow: 0 2px 8px rgba(5, 150, 105, 0.2);
+      }
     }
   `
 })

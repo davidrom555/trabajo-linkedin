@@ -105,7 +105,7 @@ import { SearchBarComponent } from './components/search-bar-new/search-bar.compo
   styles: `
     .header-gradient {
       background: linear-gradient(135deg, var(--sj-primary) 0%, var(--sj-primary-dark) 100%);
-      padding: 20px 0;
+      padding: calc(20px + var(--safe-area-inset-top)) 0 20px 0;
       border-radius: 0 0 28px 28px;
       box-shadow: 0 8px 32px rgba(5, 150, 105, 0.25),
                   0 1px 0 rgba(255, 255, 255, 0.1) inset;
